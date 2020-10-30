@@ -41,11 +41,15 @@ reed_solomon_ctx *reed_solomon_field_ctx_new(uint64_t needed_chunk_bytelen){
 
     int irr_poly_2048[] = {2048, 19, 14, 13, 0, -1};
     int irr_poly_4096[] = {4096, 27, 15, 1 , 0, -1};
+    int irr_poly_7728[] = {7728, 21, 6, 3, 0, -1};
     int irr_poly_8192[] = {8192, 9 , 5 , 2 , 0, -1};
+    int irr_poly_10K[]  = {10000, 19, 13 , 9, 0, -1};
 
     BIGNUM *field = BN_new();
-    if (needed_chunk_bytelen * 8 > 8192) {
+    if (needed_chunk_bytelen * 8 > 10000) {
         return NULL;
+    } else if (needed_chunk_bytelen * 8 > 8192) {
+        BN_GF2m_arr2poly(irr_poly_10K, field);
     } else if (needed_chunk_bytelen * 8 > 4096) {
         BN_GF2m_arr2poly(irr_poly_8192, field);
     } else if (needed_chunk_bytelen * 8 > 2048) {
@@ -133,7 +137,7 @@ void compute_chunk_at(uint64_t chunk_index, uint8_t *chunk_bytes, reed_solomon_c
     }
     //printf("\n");
 
-    assert((uint64_t) BN_num_bytes(chunk_val) <= rs_ctx->chunk_bytelen);
+    //assert((uint64_t) BN_num_bytes(chunk_val) <= rs_ctx->chunk_bytelen);
     BN_bn2binpad(chunk_val, chunk_bytes, rs_ctx->chunk_bytelen);
 
     BN_free(chunk_ind);
@@ -180,9 +184,6 @@ int main(int argc, char* argv[]) {
     printf("generation time: %.3f ms\n", time_ms);
     printf("chunk bytes = %ld\n", rs_ctx->chunk_bytelen);
     //printf("maximal number of chunks: "); printBIGNUM("", rs_ctx->field, "\n");
-    BIGNUM *num_bytes = BN_dup(rs_ctx->field);
-    BN_mul_word(num_bytes, rs_ctx->chunk_bytelen);
-    printf("total data bytes (including redundancies): "); printBIGNUM("", num_bytes, "\n");
 
     // Set random base
     uint8_t **base = calloc(base_length, sizeof(uint8_t *));
