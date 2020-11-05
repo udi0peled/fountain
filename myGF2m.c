@@ -227,7 +227,7 @@ void GF2m_mul(GF2m_el r, const GF2m_el a, const GF2m_el b) {
     uint64_t x0, x1, y0, y1, zz[4];
 
     GF2m_full_product s;
-    memset(s, 0x00, sizeof(s));
+    memset(s, 0x00, sizeof(GF2m_full_product));
 
     for (j = 0; j < GF2m_QWORDLEN; j += 2) {
         y0 = b[j];
@@ -293,13 +293,13 @@ static int BN_num_bits_word(uint64_t l)
 void GF2m_inv(GF2m_el r, const GF2m_el a, const GF2m_extended_el p) {
     GF2m_extended_el b_el, c_el, u_el, v_el;
 
-    memset(b_el, 0x00, sizeof(b_el));
-    memset(c_el, 0x00, sizeof(c_el));
-    memset(u_el, 0x00, sizeof(u_el));
-    memset(v_el, 0x00, sizeof(v_el));
+    memset(b_el, 0x00, sizeof(GF2m_extended_el));
+    memset(c_el, 0x00, sizeof(GF2m_extended_el));
+    memset(u_el, 0x00, sizeof(GF2m_extended_el));
+    memset(v_el, 0x00, sizeof(GF2m_extended_el));
 
-    memcpy(u_el, a, sizeof(a));
-    memcpy(v_el, p, sizeof(p));
+    memcpy(u_el, a, sizeof(GF2m_el));
+    memcpy(v_el, p, sizeof(GF2m_extended_el));
 
     uint64_t *b, *c, *u, *v, *tmp;
     
@@ -356,6 +356,11 @@ void GF2m_inv(GF2m_el r, const GF2m_el a, const GF2m_extended_el p) {
     cdp = c;
     vdp = v;
 
+    printHexBytes("udp = ", (uint8_t*) udp, sizeof(GF2m_extended_el), "\n", 1);
+    printHexBytes("vdp = ", (uint8_t*) vdp, sizeof(GF2m_extended_el), "\n", 1);
+    printHexBytes("bdp = ", (uint8_t*) bdp, sizeof(GF2m_extended_el), "\n", 1);
+    printHexBytes("cdp = ", (uint8_t*) cdp, sizeof(GF2m_extended_el), "\n", 1);
+
     while (1) {
         while (ubits && !(udp[0] & 1)) {
             uint64_t u0, u1, b0, b1, mask;
@@ -388,12 +393,15 @@ void GF2m_inv(GF2m_el r, const GF2m_el a, const GF2m_extended_el p) {
             i = ubits;
             ubits = vbits;
             vbits = i;
+
             tmp = u;
             u = v;
             v = tmp;
+            
             tmp = b;
             b = c;
             c = tmp;
+
             udp = vdp;
             vdp = v;
             bdp = cdp;
@@ -414,7 +422,7 @@ void GF2m_inv(GF2m_el r, const GF2m_el a, const GF2m_extended_el p) {
     }
     
 # endif
-    printHexBytes("a inv (internal) = ", (uint8_t*) b, sizeof(b_el), "\n", 1);
+    printHexBytes("a inv (internal) = ", (uint8_t*) b, sizeof(GF2m_extended_el), "\n", 1);
     GF2m_copy(r, b);
 
     return;

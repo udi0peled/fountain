@@ -39,6 +39,7 @@ int main(int argc, char* argv[]) {
     GF2m_extended_el field;
     GF2m_get_field(field);
     printHexBytes("field = ", (uint8_t*) field, GF2m_BYTELEN+1, "\n", 1);
+    printHexBytes("field = ", (uint8_t*) field, sizeof(field), "\n", 1);
 
     GF2m_el a, b, c;
     int i, j, k;
@@ -47,7 +48,7 @@ int main(int argc, char* argv[]) {
     GF2m_from_bytes(a, NULL, 0);
     GF2m_from_bytes(b, (uint8_t*) &i, sizeof(i));
 
-    a[0] = 2;
+    a[0] = -1;
 
     printHexBytes("a = ", (uint8_t*) a, GF2m_BYTELEN, "\n", 1);
     printHexBytes("b = ", (uint8_t*) b, GF2m_BYTELEN, "\n", 1);
