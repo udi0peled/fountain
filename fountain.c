@@ -10,22 +10,22 @@
 
 typedef struct
 { 
-    uint64_t base_data_len;
-    uint64_t *base_data;
+    uint64_t data_len;
+    uint64_t *data;
     uint64_t *lagrange;
 } fountain_ctx;
 
 fountain_ctx *fountain_ctx_new(uint64_t chunk_bytelen){
     fountain_ctx *ctx = malloc(sizeof(fountain_ctx));
-    ctx->base_data_len = 0;
-    ctx->base_data = NULL;
+    ctx->data_len = 0;
+    ctx->data = NULL;
     ctx->lagrange = NULL;
     return ctx;
 }
 
 void fountain_ctx_free(fountain_ctx *ctx) {
-    free(ctx->base_data);
-    free(ctx->base_data);
+    free(ctx->data);
+    free(ctx->data);
     free(ctx);
 }
 
@@ -68,19 +68,19 @@ uint64_t gcd_extended(uint64_t a, uint64_t b, uint64_t *x, uint64_t *y)
     return gcd;  
 }  
   
-void set_base_data(fountain_ctx *ctx, uint32_t *base_data, uint64_t base_data_len) {
+void set_base_data(fountain_ctx *ctx, uint32_t *data, uint64_t data_len) {
     uint64_t temp;
 
-    ctx->base_data_len = base_data_len;
-    ctx->base_data = calloc(base_data_len, sizeof(uint64_t));
-    ctx->lagrange = calloc(base_data_len, sizeof(uint64_t));
+    ctx->data_len = data_len;
+    ctx->data = calloc(data_len, sizeof(uint64_t));
+    ctx->lagrange = calloc(data_len, sizeof(uint64_t));
 
-    for (uint64_t i = 0; i < base_data_len; ++i) {
-        ctx->base_data[i] = base_data[i] % PRIME_FIELD;
+    for (uint64_t i = 0; i < data_len; ++i) {
+        ctx->data[i] = data[i] % PRIME_FIELD;
         
         // Set lagrange multiplier denominator (inverse once at end)
         ctx->lagrange[i] = 1;
-        for (uint64_t j = 0; j < base_data_len; ++j) {
+        for (uint64_t j = 0; j < data_len; ++j) {
             if (j == i) continue;
             temp = (i - j) % PRIME_FIELD;
             (ctx->lagrange[i] * temp) % PRIME_FIELD;
@@ -95,10 +95,10 @@ uint64_t compute_chunk_at(uint64_t chunk_index, fountain_ctx *ctx)
     uint64_t lagrange;
     uint64_t temp;
     
-    for (uint64_t i = 0; i < ctx->base_data_len; ++i) {        
-        lagrange = ctx->base_data[i];
+    for (uint64_t i = 0; i < ctx->data_len; ++i) {        
+        lagrange = ctx->data[i];
 
-        for (uint64_t j = 0; j < ctx->base_data_len; ++j) {
+        for (uint64_t j = 0; j < ctx->data_len; ++j) {
             if (j == i) continue;
             temp = (chunk_index - i) % PRIME_FIELD;
             lagrange = (lagrange * temp) % PRIME_FIELD;

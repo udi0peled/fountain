@@ -1,7 +1,9 @@
-#include "reed_solomon.h"
+#include "reed_solomon_myGF2m.h"
+
+#include <stdlib.h>
+#include <stdio.h>
 #include <assert.h>
 #include <string.h>
-#include <openssl/rand.h>
 #include <time.h>
 
 typedef struct
