@@ -346,7 +346,7 @@ void GF2m_inv(GF2m_el r, const GF2m_el a, const GF2m_extended_el p) {
 # else
     int i;
     int ubits = GF2m_BITLEN;
-    int vbits = GF2m_BITLEN;
+    int vbits = GF2m_BITLEN+1;
     int top   = GF2m_QWORDLEN;
     uint64_t *udp, *bdp, *vdp, *cdp;
 
