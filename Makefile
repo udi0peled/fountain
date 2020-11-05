@@ -21,12 +21,12 @@ myGF2m.o: myGF2m.c myGF2m.h
 	@$(CC) $(App_C_Flags) -c $< -o $@
 	@echo "CC   <=  $<"
 
-reed_solomon_myssl.o: reed_solomon_myssl.c reed_solomon_myssl.h myGF2m.o
+reed_solomon_myGf2m.o: reed_solomon_myGF2m.c reed_solomon_myGF2m.h myGF2m.o
 	@$(CC) $(App_C_Flags) -c $< -o $@
 	@echo "CC   <=  $<"
 
-$(MyGF2m): myGF2m.o reed_solomon_myssl.o 
-	@$(CXX) $^ -o $@ $(App_Link_Flags)
+$(MyGF2m): myGF2m.o reed_solomon_myGF2m.o 
+	@$(CXX) $^ -o $@ 
 	@echo "LINK =>  $@"
 
 clean:

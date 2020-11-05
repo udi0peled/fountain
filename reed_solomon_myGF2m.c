@@ -1,25 +1,20 @@
 #include "reed_solomon_myGF2m.h"
-
-#include <stdlib.h>
 #include <stdio.h>
-#include <assert.h>
+#include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
 typedef struct
 { 
-    BN_CTX *bn_ctx;
-    int *field;
-
     uint8_t base_size;
     uint64_t data_bytelen;
     uint8_t next_data_i;
-    BIGNUM **data_indices; 
-    BIGNUM **bn_data;
+    GF2m_el *data_indices; 
+    GF2m_el *bn_data;
     
-    BIGNUM **lagrange;
+    GF2m_el *lagrange;
 
 } reed_solomon_ctx;
+
 
 void printHexBytes(const char * prefix, const uint8_t *src, unsigned len, const char * suffix, int print_len) {
   if (len == 0) {
@@ -36,6 +31,38 @@ void printHexBytes(const char * prefix, const uint8_t *src, unsigned len, const 
   printf("%02x%s",src[i] & 0xff, suffix);
 }
 
+int main(int argc, char* argv[]) {
+    printf("Field: %d", GF2m_BITLEN);
+    for (int j = 0; j < GF2m_FIELD_WEIGHT-1; ++j) printf(" %d", GF2m_FIELD[j]);
+    printf("\n");
+
+    GF2m_extended_el field;
+    GF2m_get_field(field);
+    printHexBytes("field = ", (uint8_t*) field, GF2m_BYTELEN+1, "\n", 1);
+
+    GF2m_el a, b, c;
+    int i, j, k;
+    
+    i = 2;
+    GF2m_from_bytes(a, NULL, 0);
+    GF2m_from_bytes(b, (uint8_t*) &i, sizeof(i));
+
+    a[0] = 2;
+
+    printHexBytes("a = ", (uint8_t*) a, GF2m_BYTELEN, "\n", 1);
+    printHexBytes("b = ", (uint8_t*) b, GF2m_BYTELEN, "\n", 1);
+
+    GF2m_mul(c, a, b);
+    printHexBytes("a*b = ", (uint8_t*) c, GF2m_BYTELEN, "\n", 1);
+
+    GF2m_inv(b, a, field);
+    printHexBytes("a inv = ", (uint8_t*) b, GF2m_BYTELEN, "\n", 1);
+
+    GF2m_mul(c, a, b);
+    printHexBytes("a*(a inv) = ", (uint8_t*) c, GF2m_BYTELEN, "\n", 1);
+}
+
+/*
 void readHexBytes(uint8_t* dest, uint64_t dest_len, const char* src, uint64_t src_len)
 {
     uint64_t i = 0;
@@ -401,3 +428,4 @@ int main(int argc, char* argv[]) {
 
     } else usage_error();
 }
+*/
