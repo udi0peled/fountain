@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Should be of length GF2m_FIELD_WEIGHT-1
+// Should be of length GF2m_FIELD_WEIGHT-1, heighest order is GF2m_BITLEN (=64*GF2m_QWORDLEN)
 const int GF2m_FIELD[GF2m_FIELD_WEIGHT-1] = {4, 3, 1, 0};
 
 void GF2m_from_bytes(GF2m_el el, const uint8_t *from_bytes, uint64_t from_len) {
