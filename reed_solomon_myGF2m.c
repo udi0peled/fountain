@@ -44,11 +44,11 @@ int main(int argc, char* argv[]) {
     GF2m_el a, b, c;
     int i, j, k;
     
-    i = 2;
+    i = 1043;
     GF2m_from_bytes(a, NULL, 0);
     GF2m_from_bytes(b, (uint8_t*) &i, sizeof(i));
 
-    a[0] = -1;
+    a[0] = -5432;
 
     printHexBytes("a = ", (uint8_t*) a, GF2m_BYTELEN, "\n", 1);
     printHexBytes("b = ", (uint8_t*) b, GF2m_BYTELEN, "\n", 1);

@@ -308,58 +308,17 @@ void GF2m_inv(GF2m_el r, const GF2m_el a, const GF2m_extended_el p) {
     u = u_el;
     v = v_el;
 
-# if 0
-    if (!BN_one(b))
-        goto err;
-
-    while (1) {
-        while (!BN_is_odd(u)) {
-            if (BN_is_zero(u))
-                goto err;
-            if (!BN_rshift1(u, u))
-                goto err;
-            if (BN_is_odd(b)) {
-                if (!BN_GF2m_add(b, b, p))
-                    goto err;
-            }
-            if (!BN_rshift1(b, b))
-                goto err;
-        }
-
-        if (BN_abs_is_word(u, 1))
-            break;
-
-        if (BN_num_bits(u) < BN_num_bits(v)) {
-            tmp = u;
-            u = v;
-            v = tmp;
-            tmp = b;
-            b = c;
-            c = tmp;
-        }
-
-        if (!BN_GF2m_add(u, u, v))
-            goto err;
-        if (!BN_GF2m_add(b, b, c))
-            goto err;
-    }
-# else
     int i;
     int ubits = GF2m_BITLEN;
-    int vbits = GF2m_BITLEN+1;
-    int top   = GF2m_QWORDLEN;
-    uint64_t *udp, *bdp, *vdp, *cdp;
+    int vbits = GF2m_BITLEN + 1;
+    int top   = GF2m_QWORDLEN + 1;
 
+    uint64_t *udp, *bdp, *vdp, *cdp;
     udp = u;
     bdp = b;
     b[0] = 1;
     cdp = c;
     vdp = v;
-
-    printHexBytes("udp = ", (uint8_t*) udp, sizeof(GF2m_extended_el), "\n", 1);
-    printHexBytes("vdp = ", (uint8_t*) vdp, sizeof(GF2m_extended_el), "\n", 1);
-    printHexBytes("bdp = ", (uint8_t*) bdp, sizeof(GF2m_extended_el), "\n", 1);
-    printHexBytes("cdp = ", (uint8_t*) cdp, sizeof(GF2m_extended_el), "\n", 1);
 
     while (1) {
         while (ubits && !(udp[0] & 1)) {
@@ -421,11 +380,9 @@ void GF2m_inv(GF2m_el r, const GF2m_el a, const GF2m_extended_el p) {
         }
     }
     
-# endif
-    printHexBytes("a inv (internal) = ", (uint8_t*) b, sizeof(GF2m_extended_el), "\n", 1);
     GF2m_copy(r, b);
-
     return;
+
 err:
     memset(r, 0x00, GF2m_BYTELEN);
 }

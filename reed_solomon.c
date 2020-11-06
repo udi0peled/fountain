@@ -301,6 +301,16 @@ void print_chunk(const reed_solomon_ctx *rs_ctx, const uint8_t *data, uint8_t in
     printHexBytes("", data, rs_ctx->data_bytelen, " ", 0);
 }
 
+// typedef struct bignum_st {
+//     BN_ULONG *d;                /* Pointer to an array of 'BN_BITS2' bit
+//                                  * chunks. */
+//     int top;                    /* Index of last used d +1. */
+//     /* The next are internal book keeping for bn_expand. */
+//     int dmax;                   /* Size of the d array. */
+//     int neg;                    /* one if the number is negative */
+//     int flags;
+// } bignum_st;
+
 void encode_random(uint64_t data_bytelen, uint8_t base_size, uint8_t chunk_amount) {
     
     // Setup the fountain context
@@ -309,6 +319,10 @@ void encode_random(uint64_t data_bytelen, uint8_t base_size, uint8_t chunk_amoun
         printf("Initializaion Error, aborting\n");
         exit(1);
     }
+
+    // bignum_st *s = (bignum_st *) BN_new();
+    // BN_GF2m_arr2poly(rs_ctx->field, (BIGNUM*) s);
+    // printHexBytes("s = ", s->d, s->top*8, "\n", 1);
 
     // Sample random base
     uint8_t *base = calloc(base_size, data_bytelen);
@@ -366,6 +380,7 @@ void usage_error() {
     printf("usage: ./main decode <data_bytelen> <base_size> <spaced list of indexed chunks to decode>\n");
     exit(1);
 }
+
 
 int main(int argc, char* argv[]) {
     uint64_t data_bytelen;
