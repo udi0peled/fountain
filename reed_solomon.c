@@ -199,6 +199,59 @@ void compute_data_at(reed_solomon_ctx *rs_ctx, uint8_t chunk_index, uint8_t *com
 //     printf("\n");
 // }
 
+
+
+void time_GF2m(uint64_t reps, uint64_t data_bytelen) {
+    clock_t start, diff;
+    double time_ms;
+
+    reed_solomon_ctx *rs_ctx = reed_solomon_ctx_new(data_bytelen, 1);
+    if (!rs_ctx) {
+        printf("Initializaion Error, aborting\n");
+        exit(1);
+    }
+    assert(rs_ctx->data_bytelen == data_bytelen);
+    printf("data byte length = %ld\n", rs_ctx->data_bytelen);
+
+    BIGNUM *field = BN_CTX_get(rs_ctx->bn_ctx);
+    BN_GF2m_arr2poly(rs_ctx->field, field);
+    for (int j = 0; rs_ctx->field[j] != -1; ++j) printf("%d ", rs_ctx->field[j]);
+    printf("\n");
+    
+    BIGNUM *a = BN_CTX_get(rs_ctx->bn_ctx);
+    BIGNUM *b = BN_CTX_get(rs_ctx->bn_ctx); 
+    BIGNUM *a_inv = BN_CTX_get(rs_ctx->bn_ctx); 
+
+    uint8_t *bytes = malloc(data_bytelen);
+    
+    RAND_bytes(bytes, data_bytelen);
+    BN_bin2bn(bytes, data_bytelen, a);
+
+    RAND_bytes(bytes, data_bytelen);
+    BN_bin2bn(bytes, data_bytelen, b);
+
+    start = clock();
+
+    for (uint64_t i = 0; i < reps; ++i) BN_GF2m_mod_mul_arr(a, a, a, rs_ctx->field, rs_ctx->bn_ctx);
+    
+    diff = clock() - start;
+    time_ms = ((double) diff * 1000/ CLOCKS_PER_SEC);
+    printf("Done. (a*a)x%lu, Time: %.3f ms\n", reps, time_ms);
+
+    start = clock();
+
+    for (uint64_t i = 0; i < reps; ++i){
+        BN_GF2m_mod_inv(a_inv, a, field, rs_ctx->bn_ctx);
+        BN_GF2m_add(a, a, b);
+    }
+
+    diff = clock() - start;
+    time_ms = ((double) diff * 1000/ CLOCKS_PER_SEC);
+    printf("Done. (a_inv + b)x%lu, Time: %.3f ms\n", reps, time_ms);
+
+    reed_solomon_ctx_free(rs_ctx);
+}
+
 void test(uint64_t data_bytelen, uint8_t base_size) {
     clock_t start, diff;
     double time_ms;
@@ -400,6 +453,7 @@ int main(int argc, char* argv[]) {
 
     if (strcmp(argv[1], "test") == 0) {
 
+        time_GF2m(1000, data_bytelen);
         test(data_bytelen, base_size);
 
     } else if ((strcmp(argv[1], "encode") == 0) || (strcmp(argv[1], "enc") == 0)) {

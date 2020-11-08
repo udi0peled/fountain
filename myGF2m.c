@@ -6,11 +6,72 @@
 // Should be of length GF2m_FIELD_WEIGHT-1, heighest order is GF2m_BITLEN (=64*GF2m_QWORDLEN)
 const int GF2m_FIELD[GF2m_FIELD_WEIGHT-1] = GF2m_FIELD_ARR;
 
+#define QWORD_BITS 64
+
+
+#define BN_MASK2 (0xffffffffffffffffL)
+
+static int BN_num_bits_word(uint64_t l)
+{
+    uint64_t x, mask;
+    int bits = (l != 0);
+
+#if QWORD_BITS > 32
+    x = l >> 32;
+    mask = (0 - x) & BN_MASK2;
+    mask = (0 - (mask >> (QWORD_BITS - 1)));
+    bits += 32 & mask;
+    l ^= (x ^ l) & mask;
+#endif
+
+    x = l >> 16;
+    mask = (0 - x) & BN_MASK2;
+    mask = (0 - (mask >> (QWORD_BITS - 1)));
+    bits += 16 & mask;
+    l ^= (x ^ l) & mask;
+
+    x = l >> 8;
+    mask = (0 - x) & BN_MASK2;
+    mask = (0 - (mask >> (QWORD_BITS - 1)));
+    bits += 8 & mask;
+    l ^= (x ^ l) & mask;
+
+    x = l >> 4;
+    mask = (0 - x) & BN_MASK2;
+    mask = (0 - (mask >> (QWORD_BITS - 1)));
+    bits += 4 & mask;
+    l ^= (x ^ l) & mask;
+
+    x = l >> 2;
+    mask = (0 - x) & BN_MASK2;
+    mask = (0 - (mask >> (QWORD_BITS - 1)));
+    bits += 2 & mask;
+    l ^= (x ^ l) & mask;
+
+    x = l >> 1;
+    mask = (0 - x) & BN_MASK2;
+    mask = (0 - (mask >> (QWORD_BITS - 1)));
+    bits += 1 & mask;
+
+    return bits;
+}
+
+void GF2m_set_top_bit(GF2m_el el) {
+    uint64_t i = GF2m_QWORDLEN - 1;
+    while (el[i] == 0)  {
+        if (i == 0) break;
+        --i;
+    }
+
+    el[GF2m_QWORDLEN] = ((i * QWORD_BITS) + BN_num_bits_word(el[i]));
+}
+
 void GF2m_from_bytes(GF2m_el el, const uint8_t *from_bytes, uint64_t from_len) {
     uint8_t *p = (uint8_t*) el;
     uint64_t copy_len = (from_len < GF2m_BYTELEN ? from_len : GF2m_BYTELEN);
     memcpy(p, from_bytes, copy_len);
     memset(p + copy_len, 0x00, GF2m_BYTELEN-copy_len);
+    GF2m_set_top_bit(el);
 }
 
 void GF2m_to_bytes(const GF2m_el el, uint8_t *to_bytes, uint64_t to_len) {
@@ -21,15 +82,14 @@ void GF2m_to_bytes(const GF2m_el el, uint8_t *to_bytes, uint64_t to_len) {
 }
 
 void GF2m_copy(GF2m_el to, const GF2m_el from) {
-    memcpy(to, from, GF2m_BYTELEN);
+    memcpy(to, from, sizeof(GF2m_el));
 }
 
 void GF2m_rand(GF2m_el el) {
     uint8_t *el_bytes = (uint8_t*) el;
     for (uint64_t i = 0; i < GF2m_BYTELEN; ++i) el_bytes[i] = (uint8_t) rand();
+    GF2m_set_top_bit(el);
 }
-
-#define QWORD_BITS 64
 
 void GF2m_get_field(GF2m_extended_el field) {
     uint64_t i;
@@ -114,9 +174,8 @@ void GF2m_mod(GF2m_el a_mod, GF2m_full_product a) {
         }
 
     }
-
-    memcpy(a_mod, a, GF2m_BYTELEN);
-    //memset(a, 0x00, sizeof(a));
+    GF2m_copy(a_mod, a);
+    GF2m_set_top_bit(a_mod);
 }
 
 static void bn_GF2m_mul_1x1(uint64_t *r1, uint64_t *r0, const uint64_t a, const uint64_t b)
@@ -246,53 +305,7 @@ void GF2m_mul(GF2m_el r, const GF2m_el a, const GF2m_el b) {
     }
 
     GF2m_mod(r, s);
-}
-
-#define BN_MASK2 (0xffffffffffffffffL)
-
-static int BN_num_bits_word(uint64_t l)
-{
-    uint64_t x, mask;
-    int bits = (l != 0);
-
-#if QWORD_BITS > 32
-    x = l >> 32;
-    mask = (0 - x) & BN_MASK2;
-    mask = (0 - (mask >> (QWORD_BITS - 1)));
-    bits += 32 & mask;
-    l ^= (x ^ l) & mask;
-#endif
-
-    x = l >> 16;
-    mask = (0 - x) & BN_MASK2;
-    mask = (0 - (mask >> (QWORD_BITS - 1)));
-    bits += 16 & mask;
-    l ^= (x ^ l) & mask;
-
-    x = l >> 8;
-    mask = (0 - x) & BN_MASK2;
-    mask = (0 - (mask >> (QWORD_BITS - 1)));
-    bits += 8 & mask;
-    l ^= (x ^ l) & mask;
-
-    x = l >> 4;
-    mask = (0 - x) & BN_MASK2;
-    mask = (0 - (mask >> (QWORD_BITS - 1)));
-    bits += 4 & mask;
-    l ^= (x ^ l) & mask;
-
-    x = l >> 2;
-    mask = (0 - x) & BN_MASK2;
-    mask = (0 - (mask >> (QWORD_BITS - 1)));
-    bits += 2 & mask;
-    l ^= (x ^ l) & mask;
-
-    x = l >> 1;
-    mask = (0 - x) & BN_MASK2;
-    mask = (0 - (mask >> (QWORD_BITS - 1)));
-    bits += 1 & mask;
-
-    return bits;
+    GF2m_set_top_bit(r);
 }
 
 void GF2m_inv(GF2m_el r, const GF2m_el a, const GF2m_extended_el p) {
@@ -303,7 +316,7 @@ void GF2m_inv(GF2m_el r, const GF2m_el a, const GF2m_extended_el p) {
     memset(u_el, 0x00, sizeof(GF2m_extended_el));
     memset(v_el, 0x00, sizeof(GF2m_extended_el));
 
-    memcpy(u_el, a, sizeof(GF2m_el));
+    memcpy(u_el, a, GF2m_BYTELEN);
     memcpy(v_el, p, sizeof(GF2m_extended_el));
 
     uint64_t *b, *c, *u, *v, *tmp;
@@ -314,7 +327,7 @@ void GF2m_inv(GF2m_el r, const GF2m_el a, const GF2m_extended_el p) {
     v = v_el;
 
     int i;
-    int ubits = GF2m_BITLEN;
+    int ubits = a[GF2m_QWORDLEN];
     int vbits = GF2m_BITLEN + 1;
     int top   = GF2m_QWORDLEN + 1;
 
@@ -394,4 +407,5 @@ err:
 
 void GF2m_add(GF2m_el r, const GF2m_el a, const GF2m_el b) {
     for (uint64_t i = 0; i < GF2m_QWORDLEN; ++i)  r[i] = a[i] ^ b[i];
+    GF2m_set_top_bit(r);
 }

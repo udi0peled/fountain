@@ -42,6 +42,7 @@ int test_myGF2m() {
     printHexBytes("field = ", (uint8_t*) field, sizeof(field), "\n", 1);
 
     GF2m_el a, b, c, a_inv;
+    uint64_t val;
 
     srand((unsigned int) time(NULL));
     GF2m_rand(a);
@@ -50,8 +51,20 @@ int test_myGF2m() {
     printHexBytes("a = ", (uint8_t*) a, GF2m_BYTELEN, "\n", 1);
     printHexBytes("b = ", (uint8_t*) b, GF2m_BYTELEN, "\n", 1);
 
-    GF2m_mul(c, a, a);
-    printHexBytes("a*a = ", (uint8_t*) c, GF2m_BYTELEN, "\n", 1);
+    GF2m_set_top_bit(a);
+    GF2m_set_top_bit(b);
+    printf("a top = %lu\n", a[GF2m_QWORDLEN]);
+    printf("b top = %lu\n", b[GF2m_QWORDLEN]);
+
+    val = -1;
+    GF2m_from_bytes(a, &val, sizeof(uint64_t));
+    printHexBytes("a = ", (uint8_t*) a, GF2m_BYTELEN, "\n", 1);
+
+    GF2m_set_top_bit(a);
+    printf("a top = %lu\n", a[GF2m_QWORDLEN]);
+    
+    GF2m_mul(c, a, b);
+    printHexBytes("a*b = ", (uint8_t*) c, GF2m_BYTELEN, "\n", 1);
     
     GF2m_mul(c, c, a);
     printHexBytes("a*a*a = ", (uint8_t*) c, GF2m_BYTELEN, "\n", 1);
@@ -59,17 +72,59 @@ int test_myGF2m() {
     GF2m_mul(c, a, c);
     printHexBytes("a*a*a*a = ", (uint8_t*) c, GF2m_BYTELEN, "\n", 1);
 
-    GF2m_mul(c, a, b);
-    printHexBytes("a*b = ", (uint8_t*) c, GF2m_BYTELEN, "\n", 1);
-
+    GF2m_set_top_bit(a);
     GF2m_inv(a_inv, a, field);
     printHexBytes("a inv = ", (uint8_t*) a_inv, GF2m_BYTELEN, "\n", 1);
 
-    GF2m_mul(a, a, a_inv);
-    printHexBytes("a*(a inv) = ", (uint8_t*) a, GF2m_BYTELEN, "\n", 1);
+    GF2m_mul(c, a, a_inv);
+    printHexBytes("a*(a inv) = ", (uint8_t*) c, GF2m_BYTELEN, "\n", 1);
+    
+    GF2m_el fixed_el;
+    uint8_t i = 1;
+    GF2m_from_bytes(fixed_el, &i, 1);
+    assert(memcmp(c,fixed_el, GF2m_BYTELEN) == 0);
 
+    GF2m_mul(c, a, b);
     GF2m_mul(a, c, a_inv);
     assert(memcmp(a,b,GF2m_BYTELEN) == 0);
+}
+
+
+int time_myGF2m(uint64_t reps) {
+    clock_t start, diff;
+    double time_ms;
+
+    printf("Field: %d", GF2m_BITLEN);
+    for (int j = 0; j < GF2m_FIELD_WEIGHT-1; ++j) printf(" %d", GF2m_FIELD[j]);
+    printf("\n");
+
+    GF2m_extended_el field;
+    GF2m_get_field(field);
+    
+    GF2m_el a, b, c, a_inv;
+
+    srand((unsigned int) time(NULL));
+    GF2m_rand(a);
+    GF2m_rand(b);
+    
+    start = clock();
+
+    for (uint64_t i = 0; i < reps; ++i) GF2m_mul(a, a, a);
+    
+    diff = clock() - start;
+    time_ms = ((double) diff * 1000/ CLOCKS_PER_SEC);
+    printf("Done. (a*a)x%lu, Time: %.3f ms\n", reps, time_ms);
+
+    start = clock();
+
+    for (uint64_t i = 0; i < reps; ++i){
+        GF2m_inv(a_inv, a, field);
+        GF2m_add(a, a, b);
+    }
+
+    diff = clock() - start;
+    time_ms = ((double) diff * 1000/ CLOCKS_PER_SEC);
+    printf("Done. (a_inv + b)x%lu, Time: %.3f ms\n", reps, time_ms);
 }
 
 void readHexBytes(uint8_t* dest, uint64_t dest_len, const char* src, uint64_t src_len)
@@ -118,7 +173,7 @@ void set_data_at(reed_solomon_ctx *rs_ctx, const GF2m_el data, uint8_t data_inde
     if (i >= rs_ctx->base_size) return;
 
     GF2m_from_bytes(rs_ctx->data_indices[i], &data_index, 1);
-    GF2m_from_bytes(rs_ctx->data[i], (uint8_t*) data, sizeof(GF2m_el));
+    GF2m_from_bytes(rs_ctx->data[i], (uint8_t*) data, GF2m_BYTELEN);
 
     GF2m_el temp;
     uint8_t j = 1;
@@ -193,7 +248,7 @@ void test(uint8_t base_size) {
         printf("Initializaion Error, aborting\n");
         exit(1);
     }
-    printf("data byte length = %ld\n", sizeof(GF2m_el));
+    printf("data byte length = %d\n", GF2m_BYTELEN);
 
     // Sample random base
     GF2m_el *base = calloc(base_size, sizeof(GF2m_el));
@@ -218,7 +273,7 @@ void test(uint8_t base_size) {
     GF2m_el curr_data;
     for (uint8_t i = 0; i < base_size; ++i) {
         compute_data_at(rs_ctx, i, curr_data);
-        assert(memcmp(&base[i], curr_data, sizeof(GF2m_el)) == 0);
+        assert(memcmp(&base[i], curr_data, GF2m_BYTELEN) == 0);
     }
 
     diff = clock() - start;
@@ -270,7 +325,7 @@ void test(uint8_t base_size) {
     for (uint8_t i = 0; i < base_size; ++i)
     {
         compute_data_at(decoder_ctx, i, decoded_base);
-        assert(memcmp(decoded_base, base[i], sizeof(GF2m_el)) == 0);
+        assert(memcmp(decoded_base, base[i], GF2m_BYTELEN) == 0);
     }
     assert(decoder_ctx->base_size == base_size);
     assert(decoder_ctx->base_size == decoder_ctx->next_data_i);
@@ -287,7 +342,7 @@ void test(uint8_t base_size) {
 void print_chunk(const reed_solomon_ctx *rs_ctx, const GF2m_el data, uint8_t index) {
     printHexBytes("", &rs_ctx->base_size, 1, "", 0);
     printHexBytes("", &index, 1, "", 0);
-    printHexBytes("", (uint8_t*) data, sizeof(GF2m_el), " ", 0);
+    printHexBytes("", (uint8_t*) data, GF2m_BYTELEN, " ", 0);
 }
 
 void encode_random(uint8_t base_size, uint8_t chunk_amount) {
@@ -334,9 +389,9 @@ void decode(uint8_t base_size, const uint8_t *chunks) {
         ++chunks;
         chunk_index = *chunks;
         ++chunks;
-        GF2m_from_bytes(chunk_el, chunks, sizeof(GF2m_el));
+        GF2m_from_bytes(chunk_el, chunks, GF2m_BYTELEN);
         set_data_at(decoder_ctx, chunk_el, chunk_index);
-        chunks += sizeof(GF2m_el);
+        chunks += GF2m_BYTELEN;
     }
 
     GF2m_el decoded_base;
@@ -366,7 +421,8 @@ int main(int argc, char* argv[]) {
 
     if (strcmp(argv[1], "test") == 0) {
 
-        //test_myGF2m();
+        test_myGF2m();
+        time_myGF2m(1000);
         test(base_size);
 
     } else if ((strcmp(argv[1], "encode") == 0) || (strcmp(argv[1], "enc") == 0)) {
@@ -378,11 +434,11 @@ int main(int argc, char* argv[]) {
     } else if ((strcmp(argv[1], "decode") == 0) || (strcmp(argv[1], "dec") == 0)) {
         if (argc < 3+base_size) usage_error();
 
-        uint8_t *chunks = calloc(base_size, 2 + sizeof(GF2m_el));
+        uint8_t *chunks = calloc(base_size, 2 + GF2m_BYTELEN);
         uint8_t *curr_chunk = chunks;
         for (uint8_t i = 0; i < base_size; ++i) {
-            readHexBytes(curr_chunk, 2+sizeof(GF2m_el), argv[3+i], strlen(argv[4+i]));
-            curr_chunk += 2+sizeof(GF2m_el);
+            readHexBytes(curr_chunk, 2+GF2m_BYTELEN, argv[3+i], strlen(argv[4+i]));
+            curr_chunk += 2+GF2m_BYTELEN;
         }
         decode(base_size, chunks);
 
