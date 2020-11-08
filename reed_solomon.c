@@ -57,6 +57,7 @@ void printBIGNUM(const char * prefix, const BIGNUM *bn, const char * suffix) {
 reed_solomon_ctx *reed_solomon_ctx_new(uint64_t base_data_bytelen, uint8_t base_size){
     BN_CTX *bn_ctx = BN_CTX_new();
 
+    int irr_poly_64[]   = {64, 4 ,3, 1, 0, -1};
     int irr_poly_80[]   = {80, 9, 4, 2, 0, -1};
     int irr_poly_2048[] = {2048, 19, 14, 13, 0, -1};
     int irr_poly_4096[] = {4096, 27, 15, 1 , 0, -1};
@@ -75,6 +76,8 @@ reed_solomon_ctx *reed_solomon_ctx_new(uint64_t base_data_bytelen, uint8_t base_
         memcpy(field, irr_poly_2048, sizeof(irr_poly_2048));
     } else if (base_data_bytelen * 8 == 80) {
         memcpy(field, irr_poly_80, sizeof(irr_poly_80));
+    } else if (base_data_bytelen * 8 == 64) {
+        memcpy(field, irr_poly_64, sizeof(irr_poly_80));
     } else {
         BN_CTX_free(bn_ctx);
         return NULL;
@@ -113,6 +116,12 @@ void reed_solomon_ctx_free(reed_solomon_ctx *rs_ctx) {
     free(rs_ctx);
 }
 
+void invert_lagrange(reed_solomon_ctx *rs_ctx) {
+    for (uint8_t i = 0; i < rs_ctx->base_size; ++i) {
+        BN_GF2m_mod_inv_arr(rs_ctx->lagrange[i], rs_ctx->lagrange[i], rs_ctx->field, rs_ctx->bn_ctx);
+    }
+}
+
 void set_data_at(reed_solomon_ctx *rs_ctx, const uint8_t *data, uint8_t data_index) {
     uint8_t i = rs_ctx->next_data_i;
 
@@ -131,6 +140,8 @@ void set_data_at(reed_solomon_ctx *rs_ctx, const uint8_t *data, uint8_t data_ind
     }
 
     rs_ctx->next_data_i += 1;
+    
+    if (rs_ctx->next_data_i == rs_ctx->base_size) invert_lagrange(rs_ctx);
 }
 
 void set_base_data(reed_solomon_ctx *rs_ctx, uint8_t *data) {
@@ -141,15 +152,11 @@ void set_base_data(reed_solomon_ctx *rs_ctx, uint8_t *data) {
         assert((uint64_t) BN_num_bytes(rs_ctx->bn_data[i]) <= rs_ctx->data_bytelen);
     }
     assert(rs_ctx->next_data_i == rs_ctx->base_size);
-
-    for (uint8_t i = 0; i < rs_ctx->base_size; ++i) {
-        BN_GF2m_mod_inv_arr(rs_ctx->lagrange[i], rs_ctx->lagrange[i], rs_ctx->field, rs_ctx->bn_ctx);
-    }
 }
 
-void compute_data_at(reed_solomon_ctx *rs_ctx, uint8_t chunk_index, uint8_t *data_bytelen)
+void compute_data_at(reed_solomon_ctx *rs_ctx, uint8_t chunk_index, uint8_t *comp_data)
 {
-    if (!data_bytelen) return;
+    if (!comp_data) return;
     if (rs_ctx->next_data_i != rs_ctx->base_size) return;
 
     BIGNUM *chunk_ind = BN_CTX_get(rs_ctx->bn_ctx);
@@ -178,7 +185,7 @@ void compute_data_at(reed_solomon_ctx *rs_ctx, uint8_t chunk_index, uint8_t *dat
     //printf("\n");
 
     //assert((uint64_t) BN_num_bytes(chunk_val) <= rs_ctx->data_bytelen);
-    BN_bn2binpad(chunk_val, data_bytelen, rs_ctx->data_bytelen);
+    BN_bn2binpad(chunk_val, comp_data, rs_ctx->data_bytelen);
 }
 
 // void printBinary(BIGNUM* num, int temp[])
@@ -279,7 +286,7 @@ void test(uint64_t data_bytelen, uint8_t base_size) {
     for (uint8_t i = 0; i < base_size; ++i)
     {
         compute_data_at(decoder_ctx, i, decoded_base);
-        assert(memcmp(decoded_base, base + i * data_bytelen, data_bytelen));
+        assert(memcmp(decoded_base, base + i * data_bytelen, data_bytelen) == 0);
     }
     free(decoded_base);
     

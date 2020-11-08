@@ -4,7 +4,7 @@
 #include <string.h>
 
 // Should be of length GF2m_FIELD_WEIGHT-1, heighest order is GF2m_BITLEN (=64*GF2m_QWORDLEN)
-const int GF2m_FIELD[GF2m_FIELD_WEIGHT-1] = {4, 3, 1, 0};
+const int GF2m_FIELD[GF2m_FIELD_WEIGHT-1] = GF2m_FIELD_ARR;
 
 void GF2m_from_bytes(GF2m_el el, const uint8_t *from_bytes, uint64_t from_len) {
     uint8_t *p = (uint8_t*) el;
@@ -24,6 +24,11 @@ void GF2m_copy(GF2m_el to, const GF2m_el from) {
     memcpy(to, from, GF2m_BYTELEN);
 }
 
+void GF2m_rand(GF2m_el el) {
+    uint8_t *el_bytes = (uint8_t*) el;
+    for (uint64_t i = 0; i < GF2m_BYTELEN; ++i) el_bytes[i] = (uint8_t) rand();
+}
+
 #define QWORD_BITS 64
 
 void GF2m_get_field(GF2m_extended_el field) {
@@ -39,7 +44,7 @@ void GF2m_get_field(GF2m_extended_el field) {
     }
 }
 
-typedef uint64_t GF2m_full_product[GF2m_QWORDLEN+GF2m_QWORDLEN];
+typedef uint64_t GF2m_full_product[GF2m_QWORDLEN+GF2m_QWORDLEN+2];
 
 // Changes a and puts mod result in r
 void GF2m_mod(GF2m_el a_mod, GF2m_full_product a) {
@@ -388,5 +393,5 @@ err:
 }
 
 void GF2m_add(GF2m_el r, const GF2m_el a, const GF2m_el b) {
-    for (uint64_t i = 0; i < GF2m_BYTELEN; ++i)  r[i] = a[i] ^ b[i];
+    for (uint64_t i = 0; i < GF2m_QWORDLEN; ++i)  r[i] = a[i] ^ b[i];
 }

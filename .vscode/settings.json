@@ -1,6 +1,16 @@
 {
     "files.associations": {
         "cstdint": "c",
-        "limits": "c"
+        "limits": "c",
+        "*.tcc": "c",
+        "numeric": "c",
+        "streambuf": "c",
+        "tuple": "c",
+        "type_traits": "c",
+        "utility": "c",
+        "fstream": "c",
+        "algorithm": "c",
+        "memory": "c",
+        "new": "c"
     }
 }
