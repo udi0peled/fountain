@@ -1,8 +1,8 @@
 Main_Name := main
 MyGF2m := myGF2m
 
-App_C_Flags := -O2 -Wall -Wextra -Wvla -Wno-unknown-pragmas -I. -march=skylake
-App_Cpp_Flags := $(App_C_Flags) -std=c++14
+App_C_Flags := -O2 -Wall -Wextra -Wvla -Wno-unknown-pragmas -I.
+App_Cpp_Flags := $(App_C_Flags) -std=c++14  -march=skylake
 App_Link_Flags := -lcrypto
 
 all: $(Main_Name)

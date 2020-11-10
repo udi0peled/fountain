@@ -109,11 +109,11 @@ int time_myGF2m(uint64_t reps) {
     
     start = clock();
 
-    for (uint64_t i = 0; i < reps; ++i) GF2m_mul(a, a, a);
+    for (uint64_t i = 0; i < 10*reps; ++i) GF2m_mul(a, a, a);
     
     diff = clock() - start;
     time_ms = ((double) diff * 1000/ CLOCKS_PER_SEC);
-    printf("Done. (a*a)x%lu, Time: %.3f ms\n", reps, time_ms);
+    printf("Done. (a*a)x%lu, Time: %.3f ms\n", 10*reps, time_ms);
 
     start = clock();
 
