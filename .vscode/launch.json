@@ -5,11 +5,11 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "gcc-9 - Build and debug active file",
+            "name": "build and debug galois_rs",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${fileDirname}/${fileBasenameNoExtension}",
-            "args": [],
+            "program": "${workspaceFolder}/galois_rs.out",
+            "args": ["test", "2", "10"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
@@ -22,7 +22,7 @@
                     "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "C/C++: gcc-9 build active file",
+            "preLaunchTask": "build galois_rs",
             "miDebuggerPath": "/usr/bin/gdb"
         }
     ]

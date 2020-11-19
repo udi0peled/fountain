@@ -1,16 +1,16 @@
-BIGNUM_Name := bignum
-MyGF2m_Name := myGF2m
-Galois_Name := galois
+BIGNUM_Name := bignum_rs
+MyGF2m_Name := myGF2m_rs
+Galois_Name := galois_rs
 
-App_C_Flags := -O2 -Wall -Wextra -Wvla -Wno-unknown-pragmas -I.
-App_Cpp_Flags := $(App_C_Flags) -std=c++14  -march=skylake
+App_C_Flags := -g -O0 -Wall -Wextra -Wvla -Wno-unknown-pragmas -I.
+App_Cpp_Flags := $(App_C_Flags) -std=c++14 
 App_Link_Flags := -lcrypto
 
-ALL = bn mygf2m galois
+ALL := bn mygf2m galois
 
-bn	  : $(BIGNUM_Name)
-mygf2m: $(MyGF2m_Name)
-galois: $(Galois)
+bn	 : $(BIGNUM_Name)
+mygf : $(MyGF2m_Name)
+gal  : $(Galois_Name)
 
 clean:
 	@rm -rf $(ALL) *.o *.out
@@ -39,10 +39,10 @@ galois.o: galois.c galois.h
 	@$(CC) $(App_C_Flags) -c $< -o $@
 	@echo "CC   <=  $<"
 
-reed_solomon_galois.o: reed_solomon_galois.c reed_solomon_galois.h galois.o
+reed_solomon_galois.o: reed_solomon_galois.c reed_solomon_galois.h galois_16bit_log_table.h  galois_16bit_inv_log_table.h 
 	@$(CC) $(App_C_Flags) -c $< -o $@
 	@echo "CC   <=  $<"
 
-$(Galois): galois.o reed_solomon_galois.o 
+$(Galois_Name): reed_solomon_galois.o 
 	@$(CXX) $^ -o $@.out
 	@echo "LINK =>  $@"

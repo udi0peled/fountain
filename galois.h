@@ -26,6 +26,9 @@ plank@cs.utk.edu
 
  */
 
+#ifndef __FOUNTAIN_GALOIS_H__
+#define __FOUNTAIN_GALOIS_H__
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -35,7 +38,7 @@ extern int galois_log(int value, int w);
 extern int galois_ilog(int value, int w);
 
 extern int galois_create_log_tables(int w);   /* Returns 0 on success, -1 on failure */
-extern int galois_free_log_tables(int w);
+extern void galois_free_log_tables(int w);
 extern int galois_logtable_multiply(int x, int y, int w);
 extern int galois_logtable_divide(int x, int y, int w);
 
@@ -85,3 +88,5 @@ void galois_w32_region_multiply(char *region,       /* Region to multiply */
                                   char *r2,         /* If r2 != NULL, products go here.  
                                                        Otherwise region is overwritten */
                                   int add);         /* If (r2 != NULL && add) the produce is XOR'd with r2 */
+
+#endif

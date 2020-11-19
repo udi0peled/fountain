@@ -184,9 +184,9 @@ int galois_create_log_tables(int w)
   return 0;
 }
 
-int galois_free_log_tables(int w) {
+void galois_free_log_tables(int w) {
   free(galois_log_tables[w]);
-  free(galois_ilog_tables[w]);
+  //free(galois_ilog_tables[w]);
   galois_log_tables[w] = NULL;
   galois_ilog_tables[w] = NULL;
 }

@@ -1,5 +1,7 @@
 #include "reed_solomon_galois.h"
-#include "galois.h"
+//#include "galois.h"
+#include "galois_16bit_log_table.h"
+#include "galois_16bit_inv_log_table.h"
 
 #include <stdio.h>
 #include <assert.h>
@@ -7,9 +9,11 @@
 #include <openssl/rand.h>
 #include <time.h>
 
-typedef uint16_t field_el;
-#define GALOIS_BITS 16
-#define galois_region_mult galois_w16_region_multiply
+typedef unsigned short field_el;
+#define GALOIS_BYTES 2
+#define GALOIS_BITS (8*GALOIS_BYTES)
+//#define galois_region_mult galois_w16_region_multiply
+//#define galois_multiply galois_logtable_multiply
 
 typedef struct reed_solomon_encoder
 { 
@@ -21,6 +25,94 @@ typedef struct reed_solomon_encoder
     char     **data_val;     // [num_data] regions (each data_bytelen size), each representing multiple field_elements;
     
 } reed_solomon_encoder;
+
+// Galois function on GALOIS_BITS=16
+
+int galois_mult(int x, int y)
+{
+  if (x == 0 || y == 0) return 0;
+  
+  int sum_j = galois_16bit_log_table[x] + galois_16bit_log_table[y];
+  
+  return galois_16bit_inv_log_table[sum_j];
+}
+
+
+void galois_region_mult(char *region, int multby, int nbytes, char *r2, int add)
+{
+  unsigned short *ur1, *ur2, *cp;
+  int prod;
+  int i, log1, j, log2;
+  unsigned long l, *lp2, *lptop;
+  unsigned short *lp;
+  int sol;
+
+  ur1 = (unsigned short *) region;
+  ur2 = (r2 == NULL) ? ur1 : (unsigned short *) r2;
+  nbytes /= 2;
+
+  if (multby == 0) {
+    if (!add) {
+      lp2 = (unsigned long *) ur2;
+      ur2 += nbytes;
+      lptop = (unsigned long *) ur2;
+      while (lp2 < lptop) { *lp2 = 0; lp2++; }
+    }
+    return;
+  }
+    
+  log1 = galois_16bit_log_table[multby];
+
+  if (r2 == NULL || !add) {
+    for (i = 0; i < nbytes; i++) {
+      if (ur1[i] == 0) {
+        ur2[i] = 0;
+      } else {
+        prod = galois_16bit_log_table[ur1[i]] + log1;
+        ur2[i] = galois_16bit_inv_log_table[prod];
+      }
+    }
+  } else {
+    sol = sizeof(long)/2;
+    lp2 = &l;
+    lp = (unsigned short *) lp2;
+    for (i = 0; i < nbytes; i += sol) {
+      cp = ur2+i;
+      lp2 = (unsigned long *) cp;
+      for (j = 0; j < sol; j++) {
+        if (ur1[i+j] == 0) {
+          lp[j] = 0;
+        } else {
+          log2 = galois_16bit_log_table[ur1[i+j]];
+          prod = log2 + log1;
+          lp[j] = galois_16bit_inv_log_table[prod];
+        }
+      }
+      *lp2 = (*lp2) ^ l;
+    }
+  }
+  return; 
+}
+
+int galois_div(int a, int b)
+{
+    int sum_j;
+
+    if (b == 0) return 0;
+    if (a == 0) return 0;
+
+    sum_j = galois_16bit_log_table[a] - galois_16bit_log_table[b];
+    if (sum_j < 0) sum_j += (int) (1 << 16)-1;
+    return galois_16bit_inv_log_table[sum_j];
+}
+
+int galois_inv(int y)
+{
+  if (y == 0) return 0;
+  return galois_div(1, y);
+}
+
+// Printing functions -- For debug
 
 void printHexBytes(const char * prefix, const uint8_t *src, unsigned len, const char * suffix, int print_len) {
   if (len == 0) {
@@ -51,24 +143,27 @@ void readHexBytes(uint8_t* dest, uint64_t dest_len, const char* src, uint64_t sr
     //if (j%2 == 1) fprintf("Warning: odd hex length for \"%s\"\n", src);
 }
 
+// Encoding/Decoding functions
+
 reed_solomon_encoder *reed_solomon_encoder_new(uint64_t num_data, uint64_t data_bytelen) {
 
-    if (data_bytelen % sizeof(field_el) != 0) {
-        fprintf(stderr, "reed_solomon_encoder_new -- need bytelen which is multiple of %lu\n", GALOIS_BITS);
+    if (sizeof(galois_16bit_log_table) != 65536 * sizeof(galois_16bit_log_table[0])) {
+        fprintf(stderr, "reed_solomon_encoder_new -- worng log table size\n");
         return NULL;
     }
 
-    int res = galois_create_log_tables(GALOIS_BITS);
+    if (sizeof(galois_16bit_inv_log_table) != 196608 * sizeof(galois_16bit_inv_log_table[0])) {
+        fprintf(stderr, "reed_solomon_encoder_new -- worng inv log table size\n");
+        return NULL;
+    }
 
-    if (res < 0) {
-        fprintf(stderr, "reed_solomon_encoder_new -- couldn't make galois %lu bit log tables\n", GALOIS_BITS);
+    if (data_bytelen % GALOIS_BYTES != 0) {
+        fprintf(stderr, "reed_solomon_encoder_new -- need bytelen which is multiple of %u\n", GALOIS_BITS);
         return NULL;
     }
 
     reed_solomon_encoder *rs_enc = malloc(sizeof(reed_solomon_encoder));
     if (!rs_enc) {
-        galois_free_log_tables(GALOIS_BITS);
-
         fprintf(stderr, "reed_solomon_encoder_new -- couldn't allocate encoder\n");
         return NULL;
     }
@@ -76,12 +171,11 @@ reed_solomon_encoder *reed_solomon_encoder_new(uint64_t num_data, uint64_t data_
     rs_enc->num_data      = num_data;
     rs_enc->data_bytelen  = data_bytelen;
     rs_enc->next_data_ind = 0;
-    rs_enc->data_pos      = calloc(num_data, sizeof(field_el));
-    rs_enc->data_val      = calloc(num_data, sizeof(char*));
-    rs_enc->lagrange_w    = calloc(num_data, sizeof(field_el));
+    rs_enc->data_pos      = (field_el *) calloc(num_data, sizeof(field_el));
+    rs_enc->data_val      = (char **)    calloc(num_data, sizeof(char*));
+    rs_enc->lagrange_w    = (field_el *) calloc(num_data, sizeof(field_el));
 
     if (!rs_enc->data_pos || !rs_enc->data_val || !rs_enc->lagrange_w) {
-        galois_free_log_tables(GALOIS_BITS);
         free(rs_enc->data_pos);
         free(rs_enc->data_val);
         free(rs_enc->lagrange_w);
@@ -92,11 +186,10 @@ reed_solomon_encoder *reed_solomon_encoder_new(uint64_t num_data, uint64_t data_
     }
 
     for (uint64_t i = 0; i < num_data; ++i) {
-        rs_enc->data_val[i] = calloc(data_bytelen, sizeof(char));
+        rs_enc->data_val[i] = (char *) calloc(data_bytelen, sizeof(char));
 
         if (!rs_enc->data_val[i]) {
             for (uint64_t j = 0; j < i; ++j) free(rs_enc->data_val[j]);
-            galois_free_log_tables(GALOIS_BITS);
             free(rs_enc->data_pos);
             free(rs_enc->data_val);
             free(rs_enc->lagrange_w);
@@ -109,7 +202,6 @@ reed_solomon_encoder *reed_solomon_encoder_new(uint64_t num_data, uint64_t data_
 }
 
 void reed_solomon_encoder_free(reed_solomon_encoder *rs_enc) {
-    galois_free_log_tables(GALOIS_BITS);
     for (uint64_t j = 0; j < rs_enc->num_data; ++j) free(rs_enc->data_val[j]);
     free(rs_enc->data_pos);
     free(rs_enc->data_val);
@@ -125,29 +217,30 @@ void set_data_at(reed_solomon_encoder *rs_enc, uint64_t data_index, const char *
         return ;
     }
 
+    field_el new_data_pos = (field_el) data_index;
     uint64_t ind = rs_enc->next_data_ind;
     for (uint64_t j = 0; j < ind; ++j) {
-        if (rs_enc->data_pos[ind] == rs_enc->data_pos[j]) {
+        if (new_data_pos == rs_enc->data_pos[j]) {
             fprintf(stderr, "set_data_at -- trying to set data pos %lu twice, ignoring\n", data_index);
             return;
         }
     }
 
-    rs_enc->data_pos[ind] = (field_el) data_index;
+    rs_enc->data_pos[ind] = new_data_pos;
     memcpy(rs_enc->data_val[ind], data, rs_enc->data_bytelen);  
 
-    rs_enc->lagrange_w[ind] = (field_el) 1;
+    rs_enc->lagrange_w[ind] = 1;
     field_el temp;
 
     // Multiply new and i'th lagrange_w with (new_pos - pos_i) for all i < ind
     for (uint64_t j = 0; j < ind; ++j) {
-        temp = rs_enc->data_pos[ind] ^ rs_enc->data_pos[j];
+        temp = new_data_pos ^ rs_enc->data_pos[j];
         if (temp == 0) {
             fprintf(stderr, "set_data_at -- trying to set data pos %lu twice, ignoring\n", data_index);
             return ;
         }
-        rs_enc->lagrange_w[j]   = (field_el) galois_single_multiply((int) rs_enc->lagrange_w[j],   (int) temp, GALOIS_BITS);
-        rs_enc->lagrange_w[ind] = (field_el) galois_single_multiply((int) rs_enc->lagrange_w[ind], (int) temp, GALOIS_BITS);
+        rs_enc->lagrange_w[j]   = galois_mult(rs_enc->lagrange_w[j],   temp);
+        rs_enc->lagrange_w[ind] = galois_mult(rs_enc->lagrange_w[ind], temp);
     }
 
     rs_enc->next_data_ind += 1;
@@ -163,7 +256,6 @@ void compute_data_at(reed_solomon_encoder *rs_enc, uint64_t data_index, char *co
         return;
     }
 
-    uint64_t ind = rs_enc->next_data_ind;
     field_el data_pos = (field_el) data_index;
 
     // Check if x_i as one of the set data_pos, return its data_val
@@ -176,16 +268,15 @@ void compute_data_at(reed_solomon_encoder *rs_enc, uint64_t data_index, char *co
     }
 
     field_el temp;
-    field_el lagrange_sum = 0;
     field_el lagrange_prod = 1;
 
     memset(computed_data, 0x00, rs_enc->data_bytelen);
     for (uint64_t i = 0; i < rs_enc->num_data; ++i) {
         temp = data_pos ^ rs_enc->data_pos[i];
-        lagrange_prod = (field_el) galois_single_multiply((int) lagrange_prod, temp, GALOIS_BITS);
+        lagrange_prod = galois_mult(lagrange_prod, temp);
 
-        temp = (field_el) galois_single_multiply((int) temp, (int) rs_enc->lagrange_w[i], GALOIS_BITS);
-        temp = (field_el) galois_inverse((int) temp, GALOIS_BITS);
+        temp = galois_mult(temp, rs_enc->lagrange_w[i]);
+        temp = galois_inv(temp);
         galois_region_mult(rs_enc->data_val[i], (int) temp, rs_enc->data_bytelen, computed_data, 1);
     }
     galois_region_mult(computed_data, (int) lagrange_prod, rs_enc->data_bytelen, NULL, 0);
@@ -202,12 +293,84 @@ void compute_data_at(reed_solomon_encoder *rs_enc, uint64_t data_index, char *co
 //     printf("\n");
 // }
 
-void test(uint64_t num_data, uint64_t data_bytelen) {
+void time_basic(uint64_t num) {
+    clock_t start, diff;
+    double time_ms;
+
+    field_el a, b;
+    a = 3;
+    b = 5;
+
+    printf("Multiplying %lu times...\n", num);
+    start = clock();
+
+    for (uint64_t i = 0; i < num; ++i) {
+        b = galois_mult(a, b);
+    }
+
+    diff = clock() - start;
+    time_ms = ((double) diff * 1000/ CLOCKS_PER_SEC);
+    printf("Done. Time: %.3f ms\n", time_ms);
+
+
+    printf("Inverting (+1) %lu times...\n", num);
+    start = clock();
+    for (uint64_t i = 0; i < num; ++i) {
+        a = galois_inv(a);
+        a += 1;
+    }
+
+    diff = clock() - start;
+    time_ms = ((double) diff * 1000/ CLOCKS_PER_SEC);
+    printf("Done. Time: %.3f ms\n", time_ms);
+
+}
+
+void test_basic(uint64_t num) {
+
+    // Test log table:
+    uint64_t log_table_size = 65535;
+
+    field_el val; 
+    for (field_el i = 1; i < log_table_size; ++i) {
+        val = galois_16bit_inv_log_table[i];
+        if (galois_16bit_log_table[val] != i) {
+            printf("error at exp(%u) = %u\n", i, val);
+            printf("error at %u = log(%u)\n", galois_16bit_log_table[val], val);
+            exit(1);
+        }
+
+        val = galois_16bit_log_table[i];
+        if (galois_16bit_inv_log_table[val] != i) {
+            printf("error at log(%u) = %u\n", i, val);
+            printf("error at %u = exp(%u)\n", galois_16bit_inv_log_table[val], val);
+            exit(1);
+        }
+    }
+
+    unsigned int rand_seed = (unsigned int) time(NULL);
+    printf("Seeding randomness with %u\n", rand_seed);
+    srand(rand_seed);
+
+    field_el a,b,c;
+    a = rand();
+    b = rand();
+    for (uint64_t i = 0; i < num; ++i) {
+        c = galois_mult(a, b);
+        if ((a != 0) && (galois_div(c, a) != b)) {
+            fprintf(stderr, "error at %u*%u == %u\n", a, b, c);
+            fprintf(stderr, "error at %u/%u = %u \n", c, a, galois_div(c, a));
+            exit(1);
+        }
+        b = c ^ a;
+    }
+}
+void test_rs(uint64_t num_data, uint64_t data_bytelen) {
     clock_t start, diff;
     double time_ms;
 
     unsigned int rand_seed = (unsigned int) time(NULL);
-    printf("Seeding randomness with %ld\n", rand_seed);
+    printf("Seeding randomness with %u\n", rand_seed);
     srand(rand_seed);
 
     // Setup the encoder and print values
@@ -216,15 +379,18 @@ void test(uint64_t num_data, uint64_t data_bytelen) {
         printf("Encoder initializaion Error, aborting\n");
         exit(1);
     }
-    printf("Number of data points = %lu, each of byte length = %lu\n", rs_enc->num_data, rs_enc->data_bytelen);
+    printf("Number of data values = %lu, each of byte length = %lu\n", rs_enc->num_data, rs_enc->data_bytelen);
     assert(data_bytelen == rs_enc->data_bytelen);
     assert(num_data == rs_enc->num_data);
 
     // Sample random base
-    char **base = calloc(num_data, sizeof(char *));
+    char **base = (char**) calloc(num_data, sizeof(char *));
     for (uint64_t i = 0; i < num_data; ++i) {
-        base[i] = calloc(data_bytelen, sizeof(char));
+        base[i] = (char *) calloc(data_bytelen, sizeof(char));
         for (uint64_t j = 0; j < data_bytelen; ++j) base[i][j] = rand();
+
+        // printf("base[%lu] = %u = ", i, base[i]);
+        // printHexBytes("", base[i], data_bytelen, "\n", 0);
     }
     
     // Set base data
@@ -240,7 +406,7 @@ void test(uint64_t num_data, uint64_t data_bytelen) {
     // TODO: test duplicate indices
 
     // Test base chunks are correct
-    printf("Testing correct computing of %lu base data...\n", num_data);
+    printf("Testing correct computing of %lu base data values...\n", num_data);
     start = clock();
 
     char *curr_data = malloc(rs_enc->data_bytelen);
@@ -267,14 +433,17 @@ void test(uint64_t num_data, uint64_t data_bytelen) {
     // Set non-base data for decoder
 
     uint64_t nonbase_shift = num_data-3;
-    printf("Computing non-base data %lu chunks [%lu, %lu)...\n", num_data, nonbase_shift, nonbase_shift+num_data);
+    printf("Computing non-base data %lu values [%lu, %lu)...\n", num_data, nonbase_shift, nonbase_shift+num_data);
     start = clock();
 
-    char **nonbase = calloc(num_data, sizeof(char *));
-    for (uint8_t i = 0; i < num_data; ++i)
+    char **nonbase = (char **) calloc(num_data, sizeof(char *));
+    for (uint64_t i = 0; i < num_data; ++i)
     {
-        nonbase[i] = calloc(data_bytelen, sizeof(char));
+        nonbase[i] = (char *) calloc(data_bytelen, sizeof(char));
         compute_data_at(rs_enc, nonbase_shift + i, nonbase[i]);
+        
+        // printf("nonbase[%u] = %u = ", nonbase_shift + i, nonbase[i]);
+        // printHexBytes("", nonbase[i], data_bytelen, "\n", 0);
     }
 
     diff = clock() - start;
@@ -283,7 +452,7 @@ void test(uint64_t num_data, uint64_t data_bytelen) {
     
     reed_solomon_encoder_free(rs_enc);
 
-    printf("Setting non-base data %d chunks [%lu, %lu) for decoder...\n", num_data, nonbase_shift, nonbase_shift+num_data);
+    printf("Setting non-base data %lu values [%lu, %lu) for decoder...\n", num_data, nonbase_shift, nonbase_shift+num_data);
     start = clock();
 
     for (uint64_t i = 0; i < num_data; ++i)
@@ -296,7 +465,7 @@ void test(uint64_t num_data, uint64_t data_bytelen) {
     printf("Done. Time: %.3f ms\n", time_ms);
 
 
-    printf("Decoding (and verifying) base from non-base data %d chunks...\n", num_data);
+    printf("Decoding (and verifying) base from non-base data %lu values...\n", num_data);
     start = clock();
 
     char *decoded_base = malloc(data_bytelen);
@@ -304,15 +473,22 @@ void test(uint64_t num_data, uint64_t data_bytelen) {
     {
         compute_data_at(rs_dec, i, decoded_base);
         assert(memcmp(decoded_base, base[i], data_bytelen) == 0);
+        // printf("decoded_base[%lu] = %u = ", i, decoded_base);
+        // printHexBytes("", decoded_base, data_bytelen, "\n", 0);
     }
-    free(decoded_base);
 
     diff = clock() - start;
     time_ms = ((double) diff * 1000/ CLOCKS_PER_SEC);
     printf("Done. Time: %.3f ms\n", time_ms);
 
+    // Check changing value doesnt decode correct
+    *rs_dec->data_val[0] += 1;
+    compute_data_at(rs_dec, 0, decoded_base);
+    assert(memcmp(decoded_base, base[0], data_bytelen) != 0);
+
     free(base);
     free(nonbase);
+    free(decoded_base);
     reed_solomon_encoder_free(rs_dec);
 }
 
@@ -333,7 +509,10 @@ void test(uint64_t num_data, uint64_t data_bytelen) {
 // } bignum_st;
 
 void encode_random(uint64_t data_bytelen, uint8_t base_size, uint8_t chunk_amount) {
-    
+    data_bytelen += 0;
+    base_size += 0;
+    chunk_amount += 0;
+    return;
     // // Setup the fountain context
     // reed_solomon_encoder *rs_enc = reed_solomon_encoder_new(data_bytelen, base_size);
     // if (!rs_enc) {
@@ -363,6 +542,10 @@ void encode_random(uint64_t data_bytelen, uint8_t base_size, uint8_t chunk_amoun
 }
 
 void decode(uint64_t data_bytelen, uint8_t base_size, const uint8_t *chunks) {
+    data_bytelen += 0;
+    base_size += 0;
+    chunks += 0;
+    return;
     // reed_solomon_encoder *decoder_ctx = reed_solomon_encoder_new(data_bytelen, base_size);
     // if (!decoder_ctx) {
     //     printf("Initializaion Error, aborting\n");
@@ -412,8 +595,12 @@ int main(int argc, char* argv[]) {
     base_size = strtoul(argv[3], NULL, 10);
 
     if (strcmp(argv[1], "test") == 0) {
-
-        test(base_size, data_bytelen);
+        
+        //galois_create_log_tables(GALOIS_BITS);
+        time_basic(base_size);
+        time_basic(base_size*base_size);
+        test_basic(base_size);
+        test_rs(base_size, data_bytelen);
 
     } else if ((strcmp(argv[1], "encode") == 0) || (strcmp(argv[1], "enc") == 0)) {
         if (argc < 5) usage_error();
