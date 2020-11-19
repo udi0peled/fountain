@@ -269,17 +269,18 @@ void compute_data_at(reed_solomon_encoder *rs_enc, uint64_t data_index, char *co
 
     field_el temp;
     field_el lagrange_prod = 1;
+    for (uint64_t i = 0; i < rs_enc->num_data; ++i) {
+        temp = data_pos ^ rs_enc->data_pos[i];
+        lagrange_prod = galois_mult(lagrange_prod, temp);
+    }
 
     memset(computed_data, 0x00, rs_enc->data_bytelen);
     for (uint64_t i = 0; i < rs_enc->num_data; ++i) {
         temp = data_pos ^ rs_enc->data_pos[i];
-        lagrange_prod = galois_mult(lagrange_prod, temp);
-
         temp = galois_mult(temp, rs_enc->lagrange_w[i]);
-        temp = galois_inv(temp);
+        temp = galois_div(lagrange_prod, temp);
         galois_region_mult(rs_enc->data_val[i], (int) temp, rs_enc->data_bytelen, computed_data, 1);
     }
-    galois_region_mult(computed_data, (int) lagrange_prod, rs_enc->data_bytelen, NULL, 0);
 }
 
 // void printBinary(BIGNUM* num, int temp[])
