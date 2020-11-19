@@ -2,8 +2,8 @@ BIGNUM_Name := bignum
 MyGF2m_Name := myGF2m
 Galois_Name := galois
 
-App_C_Flags := -O2 -Wall -Wextra -Wvla -Wno-unknown-pragmas -I. -march=skylake
-App_Cpp_Flags := $(App_C_Flags) -std=c++14
+App_C_Flags := -O2 -Wall -Wextra -Wvla -Wno-unknown-pragmas -I.
+App_Cpp_Flags := $(App_C_Flags) -std=c++14  -march=skylake
 App_Link_Flags := -lcrypto
 
 ALL = bn mygf2m galois

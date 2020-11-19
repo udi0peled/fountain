@@ -154,6 +154,8 @@ void set_base_data(reed_solomon_ctx *rs_ctx, uint8_t *data) {
     assert(rs_ctx->next_data_i == rs_ctx->base_size);
 }
 
+uint64_t count_compute_data_at;
+
 void compute_data_at(reed_solomon_ctx *rs_ctx, uint8_t chunk_index, uint8_t *comp_data)
 {
     if (!comp_data) return;
@@ -170,11 +172,12 @@ void compute_data_at(reed_solomon_ctx *rs_ctx, uint8_t chunk_index, uint8_t *com
     for (uint8_t i = 0; i < rs_ctx->base_size; ++i) {
         
         BN_GF2m_mod_mul_arr(lagrange, rs_ctx->bn_data[i], rs_ctx->lagrange[i], rs_ctx->field, rs_ctx->bn_ctx);
-
+        
         for (uint8_t j = 0; j < rs_ctx->base_size; ++j) {
             if (j == i) continue;
             BN_GF2m_sub(temp, chunk_ind, rs_ctx->data_indices[j]);
             BN_GF2m_mod_mul_arr(lagrange, lagrange, temp, rs_ctx->field, rs_ctx->bn_ctx);
+            count_compute_data_at++;
         }
         
         BN_GF2m_add(chunk_val, chunk_val, lagrange);
@@ -232,11 +235,11 @@ void time_GF2m(uint64_t reps, uint64_t data_bytelen) {
 
     start = clock();
 
-    for (uint64_t i = 0; i < reps*reps; ++i) BN_GF2m_mod_mul_arr(a, a, a, rs_ctx->field, rs_ctx->bn_ctx);
+    for (uint64_t i = 0; i < 10*reps; ++i) BN_GF2m_mod_mul_arr(a, a, a, rs_ctx->field, rs_ctx->bn_ctx);
     
     diff = clock() - start;
     time_ms = ((double) diff * 1000/ CLOCKS_PER_SEC);
-    printf("Done. (a*a)x%lu, Time: %.3f ms\n", reps*reps, time_ms);
+    printf("Done. (a*a)x%lu, Time: %.3f ms\n", 10*reps, time_ms);
 
     start = clock();
 
@@ -306,6 +309,7 @@ void test(uint64_t data_bytelen, uint8_t base_size) {
     printf("Compute non-base data %d chunks...\n", base_size);
     start = clock();
 
+    count_compute_data_at = 0;
     uint8_t nonbase_shift = base_size;
     uint8_t *nonbase = calloc(base_size, data_bytelen);
     for (uint8_t i = 0; i < base_size; ++i)
@@ -315,7 +319,7 @@ void test(uint64_t data_bytelen, uint8_t base_size) {
 
     diff = clock() - start;
     time_ms = ((double) diff * 1000/ CLOCKS_PER_SEC);
-    printf("Done. Time: %.3f ms\n", time_ms);
+    printf("Done. Time: %.3f ms (%lu ops)\n", time_ms, count_compute_data_at);
     
     reed_solomon_ctx_free(rs_ctx);
 
@@ -335,6 +339,7 @@ void test(uint64_t data_bytelen, uint8_t base_size) {
     printf("Decoding base from non-base data %d chunks...\n", base_size);
     start = clock();
 
+    count_compute_data_at = 0;
     uint8_t *decoded_base = malloc(data_bytelen);
     for (uint8_t i = 0; i < base_size; ++i)
     {
@@ -348,7 +353,7 @@ void test(uint64_t data_bytelen, uint8_t base_size) {
 
     diff = clock() - start;
     time_ms = ((double) diff * 1000/ CLOCKS_PER_SEC);
-    printf("Done. Time: %.3f ms\n", time_ms);
+    printf("Done. Time: %.3f ms (%lu ops) \n", time_ms, count_compute_data_at);
 
     free(base);
     free(nonbase);
