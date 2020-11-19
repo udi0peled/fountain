@@ -232,11 +232,11 @@ void time_GF2m(uint64_t reps, uint64_t data_bytelen) {
 
     start = clock();
 
-    for (uint64_t i = 0; i < reps; ++i) BN_GF2m_mod_mul_arr(a, a, a, rs_ctx->field, rs_ctx->bn_ctx);
+    for (uint64_t i = 0; i < reps*reps; ++i) BN_GF2m_mod_mul_arr(a, a, a, rs_ctx->field, rs_ctx->bn_ctx);
     
     diff = clock() - start;
     time_ms = ((double) diff * 1000/ CLOCKS_PER_SEC);
-    printf("Done. (a*a)x%lu, Time: %.3f ms\n", reps, time_ms);
+    printf("Done. (a*a)x%lu, Time: %.3f ms\n", reps*reps, time_ms);
 
     start = clock();
 
@@ -444,7 +444,7 @@ void usage_error() {
 
 int main(int argc, char* argv[]) {
     uint64_t data_bytelen;
-    uint8_t base_size;
+    uint16_t base_size;
 
     if (argc < 4) usage_error();
 
@@ -453,7 +453,7 @@ int main(int argc, char* argv[]) {
 
     if (strcmp(argv[1], "test") == 0) {
 
-        time_GF2m(1000, data_bytelen);
+        time_GF2m(base_size, data_bytelen);
         test(data_bytelen, base_size);
 
     } else if ((strcmp(argv[1], "encode") == 0) || (strcmp(argv[1], "enc") == 0)) {

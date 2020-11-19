@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#define __GALOIS_FIELD_8192__
+#define __GALOIS_FIELD_16__
 
 #ifdef __GALOIS_FIELD_9984__
 #define GF2m_QWORDLEN 156
@@ -20,6 +20,10 @@
 #elif defined __GALOIS_FIELD_2048__
 #define GF2m_QWORDLEN 32
 #define GF2m_FIELD_ARR {19, 14, 13, 0}
+
+#elif defined __GALOIS_FIELD_16__
+#define GF2m_QWORDLEN 2
+#define GF2m_FIELD_ARR {12, 3, 1, 0}
 
 #else
 #define GF2m_QWORDLEN 1

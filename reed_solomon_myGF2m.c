@@ -413,7 +413,7 @@ void usage_error() {
 }
 
 int main(int argc, char* argv[]) {
-    uint8_t base_size;
+    uint64_t base_size;
     
     if (argc < 3) usage_error();
 
@@ -421,9 +421,9 @@ int main(int argc, char* argv[]) {
 
     if (strcmp(argv[1], "test") == 0) {
 
-        test_myGF2m();
-        time_myGF2m(1000);
-        test(base_size);
+        //test_myGF2m();
+        time_myGF2m(base_size);
+        //test(base_size);
 
     } else if ((strcmp(argv[1], "encode") == 0) || (strcmp(argv[1], "enc") == 0)) {
         if (argc < 4) usage_error();
