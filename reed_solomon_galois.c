@@ -144,26 +144,26 @@ void readHexBytes(uint8_t* dest, uint64_t dest_len, const char* src, uint64_t sr
 
 // Encoding/Decoding functions
 
-reed_solomon_ctx *reed_solomon_encoder_new(uint32_t num_data, uint32_t data_bytelen) {
+reed_solomon_ctx *reed_solomon_ctx_new(uint32_t num_data, uint32_t data_bytelen) {
 
     if (sizeof(galois_16bit_log_table) != 65536 * sizeof(galois_16bit_log_table[0])) {
-        fprintf(stderr, "reed_solomon_encoder_new -- worng log table size\n");
+        fprintf(stderr, "reed_solomon_ctx_new -- worng log table size\n");
         return NULL;
     }
 
     if (sizeof(galois_16bit_inv_log_table) != 196608 * sizeof(galois_16bit_inv_log_table[0])) {
-        fprintf(stderr, "reed_solomon_encoder_new -- worng inv log table size\n");
+        fprintf(stderr, "reed_solomon_ctx_new -- worng inv log table size\n");
         return NULL;
     }
 
     if (data_bytelen % GALOIS_BYTES != 0) {
-        fprintf(stderr, "reed_solomon_encoder_new -- need bytelen which is multiple of %u\n", GALOIS_BYTES);
+        fprintf(stderr, "reed_solomon_ctx_new -- need bytelen which is multiple of %u\n", GALOIS_BYTES);
         return NULL;
     }
 
     reed_solomon_ctx *ctx = malloc(sizeof(reed_solomon_ctx));
     if (!ctx) {
-        fprintf(stderr, "reed_solomon_encoder_new -- couldn't allocate encoder\n");
+        fprintf(stderr, "reed_solomon_ctx_new -- couldn't allocate encoder\n");
         return NULL;
     }
 
@@ -180,7 +180,7 @@ reed_solomon_ctx *reed_solomon_encoder_new(uint32_t num_data, uint32_t data_byte
         free(ctx->lagrange_w);
         free(ctx);
 
-        fprintf(stderr, "reed_solomon_encoder_new -- couldn't allocate encoder members\n");
+        fprintf(stderr, "reed_solomon_ctx_new -- couldn't allocate encoder members\n");
         return NULL;
     }
 
@@ -200,7 +200,7 @@ reed_solomon_ctx *reed_solomon_encoder_new(uint32_t num_data, uint32_t data_byte
     return ctx;
 }
 
-void reed_solomon_encoder_free(reed_solomon_ctx *ctx) {
+void reed_solomon_ctx_free(reed_solomon_ctx *ctx) {
     for (uint32_t j = 0; j < ctx->num_data; ++j) free(ctx->data_val[j]);
     free(ctx->data_pos);
     free(ctx->data_val);
@@ -374,7 +374,7 @@ void test_rs(uint32_t num_data, uint32_t data_bytelen) {
     srand(rand_seed);
 
     // Setup the encoder and print values
-    reed_solomon_ctx *rs_enc = reed_solomon_encoder_new(num_data, data_bytelen);
+    reed_solomon_ctx *rs_enc = reed_solomon_ctx_new(num_data, data_bytelen);
     if (!rs_enc) {
         printf("Encoder initializaion Error, aborting\n");
         exit(1);
@@ -422,7 +422,7 @@ void test_rs(uint32_t num_data, uint32_t data_bytelen) {
 
     // Decode base from non base
 
-    reed_solomon_ctx *rs_dec = reed_solomon_encoder_new(num_data, data_bytelen);
+    reed_solomon_ctx *rs_dec = reed_solomon_ctx_new(num_data, data_bytelen);
     if (!rs_dec) {
         printf("Decoder initializaion Error, aborting\n");
         exit(1);
@@ -450,7 +450,7 @@ void test_rs(uint32_t num_data, uint32_t data_bytelen) {
     time_ms = ((double) diff * 1000/ CLOCKS_PER_SEC);
     printf("Done. Time: %.3f ms\n", time_ms);
     
-    reed_solomon_encoder_free(rs_enc);
+    reed_solomon_ctx_free(rs_enc);
 
     printf("Setting non-base data %u values [%u, %u) for decoder...\n", num_data, nonbase_shift, nonbase_shift+num_data);
     start = clock();
@@ -489,7 +489,7 @@ void test_rs(uint32_t num_data, uint32_t data_bytelen) {
     free(base);
     free(nonbase);
     free(decoded_base);
-    reed_solomon_encoder_free(rs_dec);
+    reed_solomon_ctx_free(rs_dec);
 }
 
 // void print_chunk(const reed_solomon_ctx *rs_enc, const uint8_t *data, uint8_t index) {
@@ -514,7 +514,7 @@ void encode_random(uint32_t data_bytelen, uint8_t base_size, uint8_t chunk_amoun
     chunk_amount += 0;
     return;
     // // Setup the fountain context
-    // reed_solomon_ctx *rs_enc = reed_solomon_encoder_new(data_bytelen, base_size);
+    // reed_solomon_ctx *rs_enc = reed_solomon_ctx_new(data_bytelen, base_size);
     // if (!rs_enc) {
     //     printf("Initializaion Error, aborting\n");
     //     exit(1);
@@ -546,7 +546,7 @@ void decode(uint32_t data_bytelen, uint8_t base_size, const uint8_t *chunks) {
     base_size += 0;
     chunks += 0;
     return;
-    // reed_solomon_ctx *decoder_ctx = reed_solomon_encoder_new(data_bytelen, base_size);
+    // reed_solomon_ctx *decoder_ctx = reed_solomon_ctx_new(data_bytelen, base_size);
     // if (!decoder_ctx) {
     //     printf("Initializaion Error, aborting\n");
     //     exit(1);
