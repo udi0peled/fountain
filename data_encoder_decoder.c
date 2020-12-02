@@ -410,7 +410,7 @@ uint32_t data_encoder_initial_num_chunks(const data_encoder_ctx *enc)
 
 void data_encoder_next_chunk(data_encoder_ctx *enc, char *chunk)
 {
-    if (!enc) return NULL;
+    if (!enc) return;
 
     char *chunk_iter = chunk;
     reed_solomon_compute_data_at(enc->rs_ctx, enc->next_index, chunk_iter);
