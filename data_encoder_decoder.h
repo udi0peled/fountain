@@ -43,4 +43,16 @@ int data_decoder_is_finished(const data_decoder_ctx_t *dec);
 // The returned value should be freed externally
 char *data_decoder_reconstruct_data(const data_decoder_ctx_t *dec, uint32_t* data_bytelen);
 
+/*************************************** 
+ * 
+ *  Bytes <-> Alphanumeric conversions
+ * 
+ ****************************************/ 
+
+// bytelen MUST be an even number, and alphanumeric of size EXACTELY 1.5*bytelen chars long
+void bytes_to_alphanumeric(const char *bytes, char *alphanumeric, uint32_t bytelen);
+
+// bytelen MUST be an even number, and alphanumeric of size EXACTELY 1.5*bytelen chars long
+void alphanumeric_to_bytes(const char *alphanumeric, char *bytes, uint32_t bytelen);
+
 #endif

@@ -542,6 +542,32 @@ char *data_decoder_reconstruct_data(const data_decoder_ctx *dec, uint32_t* data_
     return realloc(padded_data, *data_bytelen);
 }
 
+/****************************************
+ * 
+ *  binary <-> alphanumeric conversion
+ * 
+ ****************************************/
+
+void bytes_to_alphanumeric(const char *bytes, char *alphanumeric, uint32_t bytelen)
+{
+    if (bytelen % 2 != 0) {
+        printf("Odd bytelen [%u] while converting bytes to alphanumeric\n", bytelen);
+        return;
+    }
+
+    // Take every 2 bytes and convert to 3 alphnumeric
+}
+
+void alphanumeric_to_bytes(const char *alphanumeric, char *bytes, uint32_t bytelen)
+{
+    if (bytelen % 2 != 0) {
+        printf("Odd bytelen [%u] while converting alphanumeric to bytes\n", bytelen);
+        return;
+    }
+
+    // Take every 3 alphanumeric chars and convert to 2 bytes
+}
+
 /******************************************************************
  * 
  *  Testing Library - After this point can be deleted if used as library
@@ -846,10 +872,35 @@ void usage_error() {
     exit(1);
 }
 
-int main(int argc, char* argv[]) {
+char *arr[2] = {
+    "abc",
+    "def"
+};
 
+int main(int argc, char* argv[]) {
+    
+    printHexBytes("arr[0] = ", arr[0], 3, "\n", 0);
+    printHexBytes("arr[1] = ", arr[1], 3, "\n", 0);
+    printf("%d\n", strlen(arr[0]));
     uint32_t data_bytelen;
     uint32_t base_size;
+
+    printHexBytes("arr = ", arr[0], 8, "\n", 0);
+
+    char int_arr[] = {0, 1, 2, 3, 4, 5};
+    printHexBytes("int_arr = ", arr, sizeof(int_arr), "\n", 0);
+    uint16_t val;
+    memcpy(&val, int_arr, 2);
+    printf("%u\n", val);
+    printHexBytes("", &val, 2, "\n",0);
+
+    memcpy(&val, int_arr+2, 2);
+    printf("%u\n", val);
+    printHexBytes("", &val, 2, "\n",0);
+
+    memcpy(&val, int_arr+4, 2);
+    printf("%u\n", val);
+    printHexBytes("", &val, 2, "\n",0);
 
     if (argc < 4) usage_error();
 
