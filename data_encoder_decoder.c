@@ -4,14 +4,18 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
 #include <string.h>
-#include <time.h>
+
+// This allows disabling printing by commenting out
+#define __PRINT_ENABLED__
+#ifdef __PRINT_ENABLED__ 
+#define debug_printf(...) printf(__VA_ARGS__)
+#else
+#define debug_printf(...) 
+#endif
 
 typedef unsigned short field_el;
 #define GALOIS_BYTES 2
-//#define galois_region_mult galois_w16_region_multiply
-//#define galois_multiply galois_logtable_multiply
 
 typedef struct reed_solomon_ctx
 { 
@@ -125,59 +129,32 @@ int galois_inv(int y)
   return galois_div(1, y);
 }
 
-// Printing functions -- For debug
-
-void printHexBytes(const char * prefix, const uint8_t *src, unsigned len, const char * suffix, int print_len) {
-  if (len == 0) {
-    printf("%s <0 len char array> %s", prefix, suffix);
-    return;
-  }
-
-  if (print_len) printf("[%u]", len);
-  printf("%s", prefix);
-  unsigned int i;
-  for (i = 0; i < len-1; ++i) {
-    printf("%02x",src[i] & 0xff);
-  }
-  printf("%02x%s",src[i] & 0xff, suffix);
-}
-
-void readHexBytes(uint8_t* dest, uint64_t dest_len, const char* src, uint64_t src_len)
-{
-    uint64_t i = 0;
-    uint64_t j = 0;
-    unsigned int del;
-    while (i < dest_len && j < src_len) {
-        del = 0;
-        sscanf(src + j,"%2hhx%n", dest + i, &del);
-        j += del;
-        i++;
-    }
-    //if (j%2 == 1) fprintf("Warning: odd hex length for \"%s\"\n", src);
-}
-
-// Encoding/Decoding functions
+/****************************************
+ * 
+ *   Reed Solomon Encoding/Decoding
+ * 
+ * *********************************** */ 
 
 reed_solomon_ctx *reed_solomon_ctx_new(uint32_t num_data, uint32_t data_bytelen) {
 
     if (sizeof(galois_16bit_log_table) != 65536 * sizeof(galois_16bit_log_table[0])) {
-        fprintf(stderr, "reed_solomon_ctx_new -- wrong log table size\n");
+        debug_printf("reed_solomon_ctx_new -- wrong log table size\n");
         return NULL;
     }
 
     if (sizeof(galois_16bit_inv_log_table) != 196608 * sizeof(galois_16bit_inv_log_table[0])) {
-        fprintf(stderr, "reed_solomon_ctx_new -- wrong inv log table size\n");
+        debug_printf("reed_solomon_ctx_new -- wrong inv log table size\n");
         return NULL;
     }
 
     if (data_bytelen % GALOIS_BYTES != 0) {
-        fprintf(stderr, "reed_solomon_ctx_new -- need bytelen which is multiple of %u\n", GALOIS_BYTES);
+        debug_printf("reed_solomon_ctx_new -- need bytelen which is multiple of %u\n", GALOIS_BYTES);
         return NULL;
     }
 
     reed_solomon_ctx *ctx = malloc(sizeof(reed_solomon_ctx));
     if (!ctx) {
-        fprintf(stderr, "reed_solomon_ctx_new -- couldn't allocate encoder\n");
+        debug_printf("reed_solomon_ctx_new -- couldn't allocate encoder\n");
         return NULL;
     }
 
@@ -194,7 +171,7 @@ reed_solomon_ctx *reed_solomon_ctx_new(uint32_t num_data, uint32_t data_bytelen)
         free(ctx->lagrange_w);
         free(ctx);
 
-        fprintf(stderr, "reed_solomon_ctx_new -- couldn't allocate encoder members\n");
+        debug_printf("reed_solomon_ctx_new -- couldn't allocate encoder members\n");
         return NULL;
     }
 
@@ -228,7 +205,7 @@ int reed_solomon_set_data_at(reed_solomon_ctx *ctx, uint32_t data_index, const c
 
     if (!ctx || !data) return -1;
     if (ctx->next_data_ind >= ctx->num_data){
-        //fprintf(stderr, "reed_solomon_set_data_at -- trying to set data pos %u, after full data elements needed, ignoring\n", data_index);
+        //debug_printf("reed_solomon_set_data_at -- trying to set data pos %u, after full data elements needed, ignoring\n", data_index);
         return 2;
     }
 
@@ -236,7 +213,7 @@ int reed_solomon_set_data_at(reed_solomon_ctx *ctx, uint32_t data_index, const c
     uint32_t ind = ctx->next_data_ind;
     for (uint32_t j = 0; j < ind; ++j) {
         if (new_data_pos == ctx->data_pos[j]) {
-            //fprintf(stderr, "reed_solomon_set_data_at -- trying to set data pos %u twice, ignoring\n", data_index);
+            //debug_printf("reed_solomon_set_data_at -- trying to set data pos %u twice, ignoring\n", data_index);
             return 1;
         }
     }
@@ -251,7 +228,7 @@ int reed_solomon_set_data_at(reed_solomon_ctx *ctx, uint32_t data_index, const c
     for (uint32_t j = 0; j < ind; ++j) {
         temp = new_data_pos ^ ctx->data_pos[j];
         if (temp == 0) {
-            //fprintf(stderr, "reed_solomon_set_data_at -- trying to set data pos %u twice, ignoring\n", data_index);
+            //debug_printf("reed_solomon_set_data_at -- trying to set data pos %u twice, ignoring\n", data_index);
             return 1;
         }
         ctx->lagrange_w[j]   = galois_mult(ctx->lagrange_w[j],   temp);
@@ -269,7 +246,7 @@ void reed_solomon_compute_data_at(reed_solomon_ctx *ctx, uint32_t data_index, ch
 {
     if (!ctx || !computed_data) return;
     if (ctx->next_data_ind != ctx->num_data) {
-        fprintf(stderr, "reed_solomon_compute_data_at -- trying to compute data pos %u, while not all input data set, ignoring\n", data_index);
+        debug_printf("reed_solomon_compute_data_at -- trying to compute data pos %u, while not all input data set, ignoring\n", data_index);
         return;
     }
 
@@ -337,7 +314,7 @@ data_encoder_ctx *data_encoder_new(const char *data, uint32_t data_bytelen, uint
     uint32_t raw_chunk_bytelen = chunk_bytelen - header_bytelen;
 
     if ((!data) || (data_bytelen == 0) || (chunk_bytelen <= header_bytelen) || (chunk_bytelen % 2 != 0)) {
-        printf("data_encoder_new -- invalid parameters\n");
+        debug_printf("data_encoder_new -- invalid parameters\n");
         return NULL;
     }
 
@@ -346,11 +323,9 @@ data_encoder_ctx *data_encoder_new(const char *data, uint32_t data_bytelen, uint
     uint32_t zero_padding_bytelen = raw_chunk_bytelen - ((data_bytelen + sizeof(data_bytelen)) % raw_chunk_bytelen);
     uint32_t padded_bytelen = data_bytelen + zero_padding_bytelen + sizeof(data_bytelen);
     
-    assert(padded_bytelen % raw_chunk_bytelen == 0);
-
     char *padded_data = malloc(padded_bytelen);
     if (!padded_data) {
-        printf("data_encoder_new -- memory allocation failure\n");
+        debug_printf("data_encoder_new -- memory allocation failure\n");
         return NULL;
     }
 
@@ -362,7 +337,7 @@ data_encoder_ctx *data_encoder_new(const char *data, uint32_t data_bytelen, uint
     data_encoder_ctx *enc = malloc(sizeof(data_encoder_ctx));
     if (!enc) {
         free(padded_data);
-        printf("data_encoder_new -- memory allocation failure\n");
+        debug_printf("data_encoder_new -- memory allocation failure\n");
         return NULL;
     }
 
@@ -371,7 +346,7 @@ data_encoder_ctx *data_encoder_new(const char *data, uint32_t data_bytelen, uint
     if (!enc->rs_ctx) {
         free(padded_data);
         free(enc);
-        printf("data_encoder_new -- reed_solomon_ctx allocation_failure\n");
+        debug_printf("data_encoder_new -- reed_solomon_ctx allocation_failure\n");
         return NULL;
     }
 
@@ -381,7 +356,7 @@ data_encoder_ctx *data_encoder_new(const char *data, uint32_t data_bytelen, uint
     for (uint32_t i = 0; i < num_raw_chunks; ++i) {
         int res = reed_solomon_set_data_at(enc->rs_ctx, i, padded_data_iter);
         if (res != 0) {
-            printf("data_encoder_new -- error %d setting data index %d\n", res, i);
+            debug_printf("data_encoder_new -- error %d setting data index %d\n", res, i);
             free(padded_data);
             reed_solomon_ctx_free(enc->rs_ctx);
             free(enc);
@@ -389,8 +364,7 @@ data_encoder_ctx *data_encoder_new(const char *data, uint32_t data_bytelen, uint
         }
         padded_data_iter += raw_chunk_bytelen;
     }
-    assert(padded_data_iter == padded_data + padded_bytelen);
-
+    
     free(padded_data);
     return enc;
 }
@@ -439,7 +413,7 @@ data_decoder_ctx_t *data_decoder_new(uint32_t chunk_bytelen)
 {
     data_decoder_ctx *dec = malloc(sizeof(data_decoder_ctx));
     if (!dec) {
-        printf("data_decoder_new -- memory allocation failure\n");
+        debug_printf("data_decoder_new -- memory allocation failure\n");
         return NULL;
     }
 
@@ -494,13 +468,13 @@ int data_decoder_received_chunk(data_decoder_ctx *dec, const char *chunk)
         dec->rs_ctx = reed_solomon_ctx_new(num_chunks, dec->chunk_bytelen - CRC_BYTES - 2*CHUNK_INDEX_BYTES);
         
         if (!dec->rs_ctx) {
-            printf("data_decoder_received_chunk -- memory allocation failure\n");
+            debug_printf("data_decoder_received_chunk -- memory allocation failure\n");
             return -1;
         }
     }
 
     if (num_chunks != dec->rs_ctx->num_data) {
-        printf("data_decoder_received_chunk -- got different total number of chunks\n");
+        debug_printf("data_decoder_received_chunk -- got different total number of chunks\n");
         return 2;
     }
 
@@ -524,7 +498,7 @@ char *data_decoder_reconstruct_data(const data_decoder_ctx *dec, uint32_t* data_
     char *padded_data = malloc(dec->rs_ctx->num_data * dec->rs_ctx->data_bytelen);
 
     if (!padded_data) {
-        printf("data_decoder_reconstruct_data -- memory allocation failure\n");
+        debug_printf("data_decoder_reconstruct_data -- memory allocation failure\n");
         return NULL;
     }
 
@@ -548,378 +522,60 @@ char *data_decoder_reconstruct_data(const data_decoder_ctx *dec, uint32_t* data_
  * 
  ****************************************/
 
-void bytes_to_alphanumeric(const char *bytes, char *alphanumeric, uint32_t bytelen)
+char alphanumerics[] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','+','-','*','/','%'};
+
+char shifted_alphanumerics_invers[] = {40, 255, 255, 255, 255, 38, 36, 255, 37, 255, 39, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 255, 255, 255, 255, 255, 255, 255, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35};
+#define ALPHA_SHIFT 37
+#define ALPHA_LEN (sizeof(alphanumerics))
+void bytes_to_alphanumeric(const char *bytes, char *alpha, uint32_t bytelen)
 {
     if (bytelen % 2 != 0) {
-        printf("Odd bytelen [%u] while converting bytes to alphanumeric\n", bytelen);
+        debug_printf("Odd bytelen [%u] while converting bytes to alphanumeric\n", bytelen);
         return;
     }
 
     // Take every 2 bytes and convert to 3 alphnumeric
+    unsigned char *bytes_end = (unsigned char *) bytes + bytelen;
+    unsigned char *uc_bytes = (unsigned char *) bytes;
+    uint16_t curr_2bytes = 0;
+    while (uc_bytes < bytes_end) {
+        // Convert 2 bytes to 16bit integer (little endian)
+        curr_2bytes = (*uc_bytes) + (*(uc_bytes+1))*256;
+        uc_bytes += 2;
+
+        // Convert 2 bytes to 3 alphanumeric (base 41) values (little endian)
+        for (int i = 0; i < 3; ++i) {
+            *alpha = alphanumerics[curr_2bytes % ALPHA_LEN];
+            alpha += 1;
+            curr_2bytes /= ALPHA_LEN;
+        }
+    }
 }
 
-void alphanumeric_to_bytes(const char *alphanumeric, char *bytes, uint32_t bytelen)
+void alphanumeric_to_bytes(const char *alpha, char *bytes, uint32_t bytelen)
 {
     if (bytelen % 2 != 0) {
-        printf("Odd bytelen [%u] while converting alphanumeric to bytes\n", bytelen);
+        debug_printf("Odd bytelen [%u] while converting alphanumeric to bytes\n", bytelen);
         return;
     }
 
+    uint16_t factor[3] = {1, sizeof(alphanumerics), sizeof(alphanumerics)*sizeof(alphanumerics)};
+
     // Take every 3 alphanumeric chars and convert to 2 bytes
-}
-
-/******************************************************************
- * 
- *  Testing Library - After this point can be deleted if used as library
- * 
- ******************************************************************/
-
-void time_basic(uint32_t num) {
-    clock_t start, diff;
-    double time_ms;
-
-    field_el a, b;
-    a = 3;
-    b = 5;
-
-    printf("Multiplying %u times...\n", num);
-    start = clock();
-
-    for (uint32_t i = 0; i < num; ++i) {
-        b = galois_mult(a, b);
-    }
-
-    diff = clock() - start;
-    time_ms = ((double) diff * 1000/ CLOCKS_PER_SEC);
-    printf("Done. Time: %.3f ms\n", time_ms);
-
-
-    printf("Inverting (+1) %u times...\n", num);
-    start = clock();
-    for (uint32_t i = 0; i < num; ++i) {
-        a = galois_inv(a);
-        a += 1;
-    }
-
-    diff = clock() - start;
-    time_ms = ((double) diff * 1000/ CLOCKS_PER_SEC);
-    printf("Done. Time: %.3f ms\n", time_ms);
-
-}
-
-void test_basic(uint32_t num) {
-
-    // Test log table:
-    uint32_t log_table_size = 65535;
-
-    field_el val; 
-    for (field_el i = 1; i < log_table_size; ++i) {
-        val = galois_16bit_inv_log_table[i];
-        if (galois_16bit_log_table[val] != i) {
-            printf("error at exp(%u) = %u\n", i, val);
-            printf("error at %u = log(%u)\n", galois_16bit_log_table[val], val);
-            exit(1);
+    unsigned char *bytes_end = (unsigned char *) bytes + bytelen;
+    unsigned char *uc_bytes = (unsigned char *) bytes;
+    unsigned char *uc_alpha = (unsigned char *) alpha;
+    uint16_t curr_3alpha ;
+    while (uc_bytes < bytes_end) {
+        curr_3alpha = 0;
+        for (int i = 0; i < 3; ++i) {
+            if (*uc_alpha < ALPHA_SHIFT) curr_3alpha += 255;
+            else curr_3alpha += shifted_alphanumerics_invers[(*uc_alpha)-ALPHA_SHIFT] * factor[i];
+            uc_alpha++;
         }
-
-        val = galois_16bit_log_table[i];
-        if (galois_16bit_inv_log_table[val] != i) {
-            printf("error at log(%u) = %u\n", i, val);
-            printf("error at %u = exp(%u)\n", galois_16bit_inv_log_table[val], val);
-            exit(1);
-        }
+        *uc_bytes = curr_3alpha % 256;
+        curr_3alpha /= 256;
+        *(uc_bytes+1) = curr_3alpha % 256;
+        uc_bytes += 2;
     }
-
-    unsigned int rand_seed = (unsigned int) time(NULL);
-    printf("Seeding randomness with %u\n", rand_seed);
-    srand(rand_seed);
-
-    field_el a,b,c;
-    a = rand();
-    b = rand();
-    for (uint32_t i = 0; i < num; ++i) {
-        c = galois_mult(a, b);
-        if ((a != 0) && (galois_div(c, a) != b)) {
-            fprintf(stderr, "error at %u*%u == %u\n", a, b, c);
-            fprintf(stderr, "error at %u/%u = %u \n", c, a, galois_div(c, a));
-            exit(1);
-        }
-        b = c ^ a;
-    }
-}
-
-void test_rs(uint32_t num_data, uint32_t data_bytelen) {
-    clock_t start, diff;
-    double time_ms;
-
-    unsigned int rand_seed = (unsigned int) time(NULL);
-    printf("Seeding randomness with %u\n", rand_seed);
-    srand(rand_seed);
-
-    // Setup the encoder and print values
-    reed_solomon_ctx *rs_enc = reed_solomon_ctx_new(num_data, data_bytelen);
-    if (!rs_enc) {
-        printf("Encoder initializaion Error, aborting\n");
-        exit(1);
-    }
-    printf("Number of data values = %u, each of byte length = %u\n", rs_enc->num_data, rs_enc->data_bytelen);
-    assert(data_bytelen == rs_enc->data_bytelen);
-    assert(num_data == rs_enc->num_data);
-
-    // Sample random base
-    char **base = (char**) calloc(num_data, sizeof(char *));
-    for (uint32_t i = 0; i < num_data; ++i) {
-        base[i] = (char *) calloc(data_bytelen, sizeof(char));
-        for (uint32_t j = 0; j < data_bytelen; ++j) base[i][j] = rand();
-
-        // printf("base[%u] = %u = ", i, base[i]);
-        // printHexBytes("", base[i], data_bytelen, "\n", 0);
-    }
-    
-    // Set base data
-    printf("Setting base data %u chunks...\n", num_data);
-    start = clock();
-
-    for (uint32_t i = 0; i < num_data; ++i) reed_solomon_set_data_at(rs_enc, i, base[i]);
-
-    diff = clock() - start;
-    time_ms = ((double) diff * 1000/ CLOCKS_PER_SEC);
-    printf("Done. Time: %.3f ms\n", time_ms);
-
-    // TODO: test duplicate indices
-
-    // Test base chunks are correct
-    printf("Testing correct computing of %u base data values...\n", num_data);
-    start = clock();
-
-    char *curr_data = malloc(rs_enc->data_bytelen);
-    for (uint32_t i = 0; i < num_data; ++i) {
-        reed_solomon_compute_data_at(rs_enc, i, curr_data);
-        assert(memcmp(base[i], curr_data, rs_enc->data_bytelen) == 0);
-    }
-    free(curr_data);
-
-    diff = clock() - start;
-    time_ms = ((double) diff * 1000/ CLOCKS_PER_SEC);
-    printf("Done. Time: %.3f ms\n", time_ms);
-
-    // Decode base from non base
-
-    reed_solomon_ctx *rs_dec = reed_solomon_ctx_new(num_data, data_bytelen);
-    if (!rs_dec) {
-        printf("Decoder initializaion Error, aborting\n");
-        exit(1);
-    }
-    assert(data_bytelen == rs_dec->data_bytelen);
-    assert(num_data == rs_dec->num_data);
-
-    // Set non-base data for decoder
-
-    uint32_t nonbase_shift = num_data-3;
-    printf("Computing non-base data %u values [%u, %u)...\n", num_data, nonbase_shift, nonbase_shift+num_data);
-    start = clock();
-
-    char **nonbase = (char **) calloc(num_data, sizeof(char *));
-    for (uint32_t i = 0; i < num_data; ++i)
-    {
-        nonbase[i] = (char *) calloc(data_bytelen, sizeof(char));
-        reed_solomon_compute_data_at(rs_enc, nonbase_shift + i, nonbase[i]);
-        
-        // printf("nonbase[%u] = %u = ", nonbase_shift + i, nonbase[i]);
-        // printHexBytes("", nonbase[i], data_bytelen, "\n", 0);
-    }
-
-    diff = clock() - start;
-    time_ms = ((double) diff * 1000/ CLOCKS_PER_SEC);
-    printf("Done. Time: %.3f ms\n", time_ms);
-    
-    reed_solomon_ctx_free(rs_enc);
-
-    printf("Setting non-base data %u values [%u, %u) for decoder...\n", num_data, nonbase_shift, nonbase_shift+num_data);
-    start = clock();
-
-    for (uint32_t i = 0; i < num_data; ++i)
-    {
-        reed_solomon_set_data_at(rs_dec, nonbase_shift + i, nonbase[i]);
-    }
-
-    diff = clock() - start;
-    time_ms = ((double) diff * 1000/ CLOCKS_PER_SEC);
-    printf("Done. Time: %.3f ms\n", time_ms);
-
-
-    printf("Decoding (and verifying) base from non-base data %u values...\n", num_data);
-    start = clock();
-
-    char *decoded_base = malloc(data_bytelen);
-    for (uint32_t i = 0; i < num_data; ++i)
-    {
-        reed_solomon_compute_data_at(rs_dec, i, decoded_base);
-        assert(memcmp(decoded_base, base[i], data_bytelen) == 0);
-        // printf("decoded_base[%u] = %u = ", i, decoded_base);
-        // printHexBytes("", decoded_base, data_bytelen, "\n", 0);
-    }
-
-    diff = clock() - start;
-    time_ms = ((double) diff * 1000/ CLOCKS_PER_SEC);
-    printf("Done. Time: %.3f ms\n", time_ms);
-
-    // Check changing value doesnt decode correct
-    *rs_dec->data_val[0] += 1;
-    reed_solomon_compute_data_at(rs_dec, 0, decoded_base);
-    assert(memcmp(decoded_base, base[0], data_bytelen) != 0);
-
-    free(base);
-    free(nonbase);
-    free(decoded_base);
-    reed_solomon_ctx_free(rs_dec);
-}
-
-void print_chunk(const char *chunk, uint32_t chunk_bytelen) {
-    uint16_t total_num = 0;
-    uint16_t chunk_index = 0;
-    uint32_t crc = 0;
-
-    memcpy(&chunk_index, chunk + chunk_bytelen - CRC_BYTES - 2*CHUNK_INDEX_BYTES, CHUNK_INDEX_BYTES);
-    memcpy(&total_num, chunk + chunk_bytelen - CRC_BYTES - CHUNK_INDEX_BYTES, CHUNK_INDEX_BYTES);
-    memcpy(&crc, chunk + chunk_bytelen - CRC_BYTES, CRC_BYTES);
-
-    printf("chunk[%u/%u]", chunk_index, total_num);
-    printHexBytes(", crc: ", (uint8_t *) &crc, sizeof(uint32_t), "\n", 0);
-
-    uint8_t * chunk_iter = (uint8_t *) chunk;
-    printHexBytes("", chunk_iter, chunk_bytelen - CRC_BYTES - 2*CHUNK_INDEX_BYTES, " ", 0);
-    chunk_iter +=  chunk_bytelen - CRC_BYTES - 2*CHUNK_INDEX_BYTES;
-    
-    printHexBytes("", chunk_iter, CHUNK_INDEX_BYTES, " ", 0);
-    chunk_iter += CHUNK_INDEX_BYTES;
-
-    printHexBytes("", chunk_iter, CHUNK_INDEX_BYTES , " ", 0);
-    chunk_iter += CHUNK_INDEX_BYTES;
-
-    printHexBytes("", chunk_iter, CRC_BYTES, "\n", 0);
-    chunk_iter += CRC_BYTES;
-}
-
-void encode_decode_random(uint32_t data_bytelen, uint32_t chunk_bytelen) {
-    char *data = malloc(data_bytelen);
-    time_t time_seed = time(NULL);
-    printf("setting time random seed: %ld", time_seed);
-    
-    srand(time_seed);
-    for (uint32_t i = 0; i < data_bytelen; ++i) {
-        data[i] = rand() % 256;
-    }
-
-    //printHexBytes("Randomized data\n", (uint8_t*) data, data_bytelen, "\n", 1);
-
-    data_encoder_ctx *enc = data_encoder_new(data, data_bytelen, chunk_bytelen);
-    uint32_t num_chunks = data_encoder_initial_num_chunks(enc);
-    uint32_t computed_num_chunks = num_chunks * 2;
-
-    printf("Number of chunks: %d\n", num_chunks);
-    printf("computing chunks number: %d\n", computed_num_chunks);
-
-    char *chunks = calloc(computed_num_chunks, chunk_bytelen);
-    char *chunk_iter = chunks;
-    for (uint32_t i = 0; i < computed_num_chunks; ++i) {
-        data_encoder_next_chunk(enc, chunk_iter);
-        //print_chunk(chunk_iter, chunk_bytelen);
-        chunk_iter += chunk_bytelen;
-    }
-
-    data_encoder_free(enc);
-
-    // Decode 
-    data_decoder_ctx_t *dec = data_decoder_new(chunk_bytelen);
-    
-    int finished_decoding = 0;
-    
-    printf("\n\nDecoding\n");
-    
-    uint32_t i = num_chunks;
-    uint32_t count = 0;
-    while (finished_decoding != 1) {
-        //print_chunk(chunk_iter, chunk_bytelen);
-        data_decoder_received_chunk(dec, chunks + i * chunk_bytelen);
-        finished_decoding = data_decoder_is_finished(dec);
-        chunk_iter += chunk_bytelen; // * (rand() % computed_num_chunks);
-        i = (i + rand()) % computed_num_chunks;
-        //printf("%d ", i);
-        count++;
-        // if (i >= 10) return;
-    }
-    printf("\t\t%d\n", count);
-
-    uint32_t recon_bytelen;
-    char *comp_data = data_decoder_reconstruct_data(dec, &recon_bytelen);
-    data_decoder_free(dec);
-    
-    if (recon_bytelen != data_bytelen) {
-        printf("Reconstructed data length: %u (not %u)\n", recon_bytelen, data_bytelen);
-    }
-
-    //printHexBytes("Reconstructed data\n", (uint8_t*) data, recon_bytelen, "\n", 1);
-    assert(memcmp(data, comp_data, data_bytelen) == 0);
-    
-    free(chunks);
-    free(data);
-    free(comp_data);
-}
-
-void usage_error() {
-    printf("usage: ./main test <data_bytelen> <base_size>\n");
-    printf("usage: ./main encdec <data_bytelen> <chunk_bytelen>\n");
-    exit(1);
-}
-
-char *arr[2] = {
-    "abc",
-    "def"
-};
-
-int main(int argc, char* argv[]) {
-    
-    printHexBytes("arr[0] = ", arr[0], 3, "\n", 0);
-    printHexBytes("arr[1] = ", arr[1], 3, "\n", 0);
-    printf("%d\n", strlen(arr[0]));
-    uint32_t data_bytelen;
-    uint32_t base_size;
-
-    printHexBytes("arr = ", arr[0], 8, "\n", 0);
-
-    char int_arr[] = {0, 1, 2, 3, 4, 5};
-    printHexBytes("int_arr = ", arr, sizeof(int_arr), "\n", 0);
-    uint16_t val;
-    memcpy(&val, int_arr, 2);
-    printf("%u\n", val);
-    printHexBytes("", &val, 2, "\n",0);
-
-    memcpy(&val, int_arr+2, 2);
-    printf("%u\n", val);
-    printHexBytes("", &val, 2, "\n",0);
-
-    memcpy(&val, int_arr+4, 2);
-    printf("%u\n", val);
-    printHexBytes("", &val, 2, "\n",0);
-
-    if (argc < 4) usage_error();
-
-    data_bytelen = strtoul(argv[2], NULL, 10);
-    base_size = strtoul(argv[3], NULL, 10);
-
-    // data_bytelen = 1024;
-    // base_size = 100;
-
-    if (strcmp(argv[1], "test") == 0) {
-        
-        time_basic(base_size);
-        time_basic(base_size*base_size);
-        test_basic(base_size);
-        test_rs(base_size, data_bytelen);
-
-    } else if ((strcmp(argv[1], "encdec") == 0) || (strcmp(argv[1], "enc") == 0)) {
-
-        encode_decode_random(data_bytelen, base_size);
-        
-    } else usage_error();
 }

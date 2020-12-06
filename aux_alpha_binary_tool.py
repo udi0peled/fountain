@@ -71,6 +71,24 @@ def test_conversions():
     print("Done")
 
 out_str = ""
+max_ind = 0
+min_ind = 256
 for c in alphanumerics:
     out_str += f'\'{c}\','
+    if ord(c) > max_ind:
+        max_ind = ord(c)
+    if ord(c) < min_ind:
+        min_ind = ord(c)
+
 print(out_str)
+print(max_ind)
+print(min_ind)
+
+arr = []
+for i in range(min_ind, max_ind+1):
+    if chr(i) in alphanumerics:
+        j = alphanumerics.index(chr(i))
+        arr.append(j)
+    else:
+        arr.append(255)
+print(arr)

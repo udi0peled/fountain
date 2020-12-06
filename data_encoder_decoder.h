@@ -5,6 +5,7 @@
 
 typedef struct data_encoder_ctx data_encoder_ctx_t;
 typedef struct data_decoder_ctx data_decoder_ctx_t;
+typedef struct reed_solomon_ctx reed_solomon_ctx_t;
 
 /**************************** 
  * 

@@ -1,6 +1,6 @@
 BIGNUM_Name := bignum_rs
 MyGF2m_Name := myGF2m_rs
-EncDec_Name := encdec_rs
+EncDec_Name := encdec_test
 
 App_C_Flags := -g -O0 -Wall -Wextra -Wvla -Wno-unknown-pragmas -I. -Wno-unused-parameter -Wno-return-type
 App_Cpp_Flags := $(App_C_Flags) -std=c++14 
@@ -43,6 +43,10 @@ data_encoder_decoder.o: data_encoder_decoder.c data_encoder_decoder.h galois_16b
 	@$(CC) $(App_C_Flags) -c $< -o $@
 	@echo "CC   <=  $<"
 
-$(EncDec_Name): data_encoder_decoder.o 
+encdec_test.o: encdec_test.c data_encoder_decoder.c data_encoder_decoder.h galois_16bit_log_table.h  galois_16bit_inv_log_table.h 
+	@$(CC) $(App_C_Flags) -c $< -o $@
+	@echo "CC   <=  $<"
+
+$(EncDec_Name): encdec_test.o
 	@$(CXX) $^ -o $@.out
 	@echo "LINK =>  $@"
