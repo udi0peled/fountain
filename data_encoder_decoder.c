@@ -483,6 +483,14 @@ int data_decoder_received_chunk(data_decoder_ctx *dec, const char *chunk)
     return 0;
 }
 
+
+uint32_t data_decoder_num_received(const data_decoder_ctx *dec)
+{
+    if (!dec) return -1;
+    if (!dec->rs_ctx) return 0;
+    return dec->rs_ctx->next_data_ind;
+}
+
 int data_decoder_is_finished(const data_decoder_ctx *dec)
 {
     if (!dec) return -1;

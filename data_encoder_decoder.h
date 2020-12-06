@@ -37,6 +37,8 @@ void data_decoder_free(data_decoder_ctx_t *dec);
 // Returns 0 if ok, 1 if wrong checksum crc (continue without problem), 2 if differenct total number then previous, -1 other error
 int data_decoder_received_chunk(data_decoder_ctx_t *dec, const char *chunk);
 
+uint32_t data_decoder_num_received(const data_decoder_ctx_t *dec); 
+
 // Boolean if enough chunks were received to reconstruct the original data
 int data_decoder_is_finished(const data_decoder_ctx_t *dec);
 
