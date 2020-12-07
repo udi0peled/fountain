@@ -483,20 +483,18 @@ int data_decoder_received_chunk(data_decoder_ctx *dec, const char *chunk)
     return 0;
 }
 
+uint32_t data_decoder_num_needed(const data_decoder_ctx *dec)
+{
+    if (!dec) return -1;
+    if (!dec->rs_ctx) return 0;
+    return dec->rs_ctx->num_data;
+}
 
 uint32_t data_decoder_num_received(const data_decoder_ctx *dec)
 {
     if (!dec) return -1;
     if (!dec->rs_ctx) return 0;
     return dec->rs_ctx->next_data_ind;
-}
-
-int data_decoder_is_finished(const data_decoder_ctx *dec)
-{
-    if (!dec) return -1;
-    if (!dec->rs_ctx) return 0;
-    if (dec->rs_ctx->next_data_ind >= dec->rs_ctx->num_data) return 1;
-    return 0;
 }
 
 char *data_decoder_reconstruct_data(const data_decoder_ctx *dec, uint32_t* data_bytelen)
@@ -533,6 +531,7 @@ char *data_decoder_reconstruct_data(const data_decoder_ctx *dec, uint32_t* data_
 char alphanumerics[] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','+','-','*','/','%'};
 
 char shifted_alphanumerics_invers[] = {40, 255, 255, 255, 255, 38, 36, 255, 37, 255, 39, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 255, 255, 255, 255, 255, 255, 255, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35};
+
 #define ALPHA_SHIFT 37
 #define ALPHA_LEN (sizeof(alphanumerics))
 void bytes_to_alphanumeric(const char *bytes, char *alpha, uint32_t bytelen)
