@@ -497,6 +497,14 @@ uint32_t data_decoder_num_received(const data_decoder_ctx *dec)
     return dec->rs_ctx->next_data_ind;
 }
 
+int data_decoder_is_finished(const data_decoder_ctx *dec)
+{
+    if (!dec) return -1;
+    if (!dec->rs_ctx) return 0;
+    if (dec->rs_ctx->next_data_ind >= dec->rs_ctx->num_data) return 1;
+    return 0;
+}
+
 char *data_decoder_reconstruct_data(const data_decoder_ctx *dec, uint32_t* data_bytelen)
 {
     if (data_decoder_is_finished(dec) != 1) return NULL;
