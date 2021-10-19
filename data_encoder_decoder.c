@@ -17,6 +17,9 @@
 typedef unsigned short field_el;
 #define GALOIS_BYTES 2
 
+uint64_t count_mult;
+uint64_t count_div; 
+
 typedef struct reed_solomon_ctx
 { 
     uint32_t num_data;
@@ -48,6 +51,8 @@ typedef struct data_decoder_ctx
 
 int galois_mult(int x, int y)
 {
+    count_mult++;
+
   if (x == 0 || y == 0) return 0;
   
   int sum_j = galois_16bit_log_table[x] + galois_16bit_log_table[y];
@@ -57,6 +62,8 @@ int galois_mult(int x, int y)
 
 void galois_region_mult(char *region, int multby, int nbytes, char *r2, int add)
 {
+    count_mult += nbytes/2;
+
   unsigned short *ur1, *ur2, *cp;
   int prod;
   int i, log1, j, log2;
@@ -113,6 +120,8 @@ void galois_region_mult(char *region, int multby, int nbytes, char *r2, int add)
 
 int galois_div(int a, int b)
 {
+    count_div++;
+
     int sum_j;
 
     if (b == 0) return 0;

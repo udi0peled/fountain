@@ -317,6 +317,9 @@ void encode_decode_random(uint32_t data_bytelen, uint32_t chunk_bytelen) {
     }
     printf("\t\t%d\n", count);
 
+    count_mult = 0;
+    count_div = 0;
+
     uint32_t recon_bytelen;
     char *comp_data = data_decoder_reconstruct_data(dec, &recon_bytelen);
     data_decoder_free(dec);
@@ -324,6 +327,8 @@ void encode_decode_random(uint32_t data_bytelen, uint32_t chunk_bytelen) {
     if (recon_bytelen != data_bytelen) {
         printf("Reconstructed data length: %u (not %u)\n", recon_bytelen, data_bytelen);
     }
+
+    printf("count_mul = %lu, count_div = %lu\n", count_mult, count_div);
 
     //printHexBytes("Reconstructed data\n", (uint8_t*) data, recon_bytelen, "\n", 1);
     assert(memcmp(data, comp_data, data_bytelen) == 0);
@@ -346,20 +351,20 @@ char *arr[2] = {
 
 int main(int argc, char* argv[]) {
     
-    char b[100];
-    char a[3*sizeof(b)/2];
-    char c[sizeof(b)];
+    // char b[100];
+    // char a[3*sizeof(b)/2];
+    // char c[sizeof(b)];
 
     srand(time(NULL));
-    for (uint32_t i = 0; i < sizeof(b); ++i) b[i] = rand() % 256;
+    // for (uint32_t i = 0; i < sizeof(b); ++i) b[i] = rand() % 256;
 
-    printHexBytes("b = ", b, sizeof(b), "\n", 1);
-    bytes_to_alphanumeric(b, a, sizeof(b));
-    printHexBytes("a = ", a, sizeof(a), "\n", 1);
-    alphanumeric_to_bytes(a, c, sizeof(c));
-    printHexBytes("c = ", c, sizeof(c), "\n", 1);
+    // printHexBytes("b = ", b, sizeof(b), "\n", 1);
+    // bytes_to_alphanumeric(b, a, sizeof(b));
+    // printHexBytes("a = ", a, sizeof(a), "\n", 1);
+    // alphanumeric_to_bytes(a, c, sizeof(c));
+    // printHexBytes("c = ", c, sizeof(c), "\n", 1);
     
-    assert(memcmp(b,c,sizeof(b)) == 0);
+    // assert(memcmp(b,c,sizeof(b)) == 0);
     
     if (argc < 4) usage_error();
 
