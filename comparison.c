@@ -59,6 +59,44 @@ int galois_div(int a, int b)
 
 typedef unsigned short field_el;
 
+
+void time_access_vs_addition(uint64_t num) {
+    
+    printf("\nAccess vs Addition...\n");
+
+    clock_t start, diff;
+    double time_ms;
+
+    field_el a, b;
+    a = rand();
+    b = rand();
+
+    printf("Accessing table %lu times...\n", num);
+    start = clock();
+
+    for (uint32_t i = 0; i < num; ++i) {
+        a = galois_16bit_log_table[a] + b;    
+    }
+
+    diff = clock() - start;
+    time_ms = ((double) diff * 1000/ CLOCKS_PER_SEC);
+    printf("Done. Time: %.3f ms\n", time_ms);
+
+
+    printf("Adding %lu times...\n", num);
+    start = clock();
+    for (uint32_t i = 0; i < num; ++i) {
+        b = galois_16bit_log_table[b] + a;
+    }
+
+    diff = clock() - start;
+    time_ms = ((double) diff * 1000/ CLOCKS_PER_SEC);
+    printf("Done. Time: %.3f ms\n", time_ms);
+
+    if (b == 0) printf("hello\n");
+    if (a == 0) printf("world\n");
+}
+
 void time_galois_16bit_log_table(uint64_t num) {
     
     printf("\nGalois 16bit table operations...\n");
@@ -92,6 +130,9 @@ void time_galois_16bit_log_table(uint64_t num) {
     time_ms = ((double) diff * 1000/ CLOCKS_PER_SEC);
     printf("Done. Time: %.3f ms\n", time_ms);
 
+    
+    if (b == 0) printf("hello\n");
+    if (a == 0) printf("world\n");
 }
 
 void time_openssl_gf2m(uint64_t bits, uint64_t num) {
@@ -141,7 +182,8 @@ void time_openssl_gf2m(uint64_t bits, uint64_t num) {
     time_ms = ((double) diff * 1000/ CLOCKS_PER_SEC);
     printf("Done. Time: %.3f ms\n", time_ms);
 
-    
+    if (BN_is_zero(a)) printf("Hello\n");
+    if (BN_is_zero(b)) printf("World\n");
     // printf("Dividing %lu times...\n", num);
     // start = clock();
     // for (uint32_t i = 0; i < num; ++i) {
@@ -163,6 +205,7 @@ int main(int argc, char* argv[]) {
 
     uint64_t num_reps = strtoul(argv[1], NULL, 10);
 
+    time_access_vs_addition(num_reps);
     time_galois_16bit_log_table(num_reps);
     time_openssl_gf2m(16, num_reps);
     time_openssl_gf2m(32, num_reps);
@@ -170,19 +213,4 @@ int main(int argc, char* argv[]) {
     time_openssl_gf2m(128, num_reps);
     time_openssl_gf2m(256, num_reps);
 
-    // // data_bytelen = 1024;
-    // // base_size = 100;
-
-    // if (strcmp(argv[1], "test") == 0) {
-        
-    //     time_basic(base_size);
-    //     time_basic(base_size*base_size);
-    //     test_basic(base_size);
-    //     test_rs(base_size, data_bytelen);
-
-    // } else if ((strcmp(argv[1], "encdec") == 0) || (strcmp(argv[1], "enc") == 0)) {
-
-    //     encode_decode_random(data_bytelen, base_size);
-        
-    // } else usage_error();
 }
