@@ -75,7 +75,7 @@ void time_access_vs_addition(uint64_t num) {
     start = clock();
 
     for (uint32_t i = 0; i < num; ++i) {
-        a = galois_16bit_log_table[a] + b;    
+        a = galois_16bit_log_table[a];    
     }
 
     diff = clock() - start;
@@ -86,7 +86,7 @@ void time_access_vs_addition(uint64_t num) {
     printf("Adding %lu times...\n", num);
     start = clock();
     for (uint32_t i = 0; i < num; ++i) {
-        b = galois_16bit_log_table[b] + a;
+        b ^= a+b;
     }
 
     diff = clock() - start;
